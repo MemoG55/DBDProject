@@ -1,0 +1,24 @@
+#pragma once
+#include "NativeGameplayTags.h"
+
+namespace DBDGameplayTags
+{
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Survivor_Status_Injured)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Survivor_Status_Crouched)
+
+	//Killer
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Name_Huntress)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Name_Nurse)
+	//Killer_Ability
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Ability_Attack)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Ability_ChargedAttack)
+	//Killer_Status
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Status_Stunned)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Status_Attacking)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Status_ChargedAttacking)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Common_Status_Falling)
+	//Killer_Huntress_Status
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Huntress_Status_AxeCharging)
+	DBDPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Killer_Huntress_Status_AxeRefilling)
+	
+};

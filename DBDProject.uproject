@@ -9,7 +9,9 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Engine"
+				"Engine",
+				"AdvancedSessions",
+				"GameplayAbilities"
 			]
 		}
 	],
@@ -39,6 +41,14 @@
 		},
 		{
 			"Name": "SkeletalMerging",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
 			"Enabled": true
 		}
 	]

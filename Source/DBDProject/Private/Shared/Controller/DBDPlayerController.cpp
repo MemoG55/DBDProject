@@ -2,9 +2,15 @@
 
 
 #include "Shared/Controller/DBDPlayerController.h"
+#include "CommonActivatableWidget.h"
 
 void ADBDPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Warning, TEXT("DBDPlayerController::BeginPlay"));
+	if (UIBaseClass)
+	{
+		UIBase = CreateWidget<UCommonActivatableWidget>(this,UIBaseClass);
+		UIBase->AddToViewport();
+	}
+	SetInputMode(FInputModeGameOnly());
 }

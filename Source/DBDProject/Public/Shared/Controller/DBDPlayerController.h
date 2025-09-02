@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "DBDPlayerController.generated.h"
 
+class UCommonActivatableWidget;
 /**
  * 
  */
@@ -14,4 +15,10 @@ class DBDPROJECT_API ADBDPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	virtual void BeginPlay() override;
+private:
+	UPROPERTY(EditAnywhere, Category = "UI",meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> UIBaseClass;
+public:
+	UPROPERTY(VisibleDefaultsOnly,BlueprintReadOnly, Category = "UI")
+	UCommonActivatableWidget* UIBase;
 };
