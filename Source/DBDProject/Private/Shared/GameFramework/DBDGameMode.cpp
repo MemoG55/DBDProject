@@ -5,7 +5,6 @@
 
 #include "AbilitySystemComponent.h"
 #include "GameFramework/GameStateBase.h"
-#include "JMS/GAS/SurvivorAttributeSet.h"
 #include "Shared/Character/DBDCharacter.h"
 #include "Shared/GameFramework/DBDPlayerState.h"
 
@@ -26,11 +25,12 @@ void ADBDGameMode::PostLogin(APlayerController* NewPlayer)
 		if (CurrentCount == 1) // 첫 번째 플레이어
 		{
 			PS->SetPlayerRole(EPlayerRole::Killer);
+			PS->InitAttributeSet();
 		}
 		else
 		{
 			PS->SetPlayerRole(EPlayerRole::Survivor);
-			USurvivorAttributeSet* SurvivorAttributeSet = NewObject<USurvivorAttributeSet>(this);
+			PS->InitAttributeSet();
 		}
 	}
 	// 역할 지정 후에 HandleStartingNewPlayer() 호출(캐릭터 스폰)

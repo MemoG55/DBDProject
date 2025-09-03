@@ -6,6 +6,7 @@
 #include "Shared/Character/DBDCharacter.h"
 #include "SurvivorCharacter.generated.h"
 
+struct FGameplayTag;
 enum class ESurvivorAbilityInputID : uint8;
 class UDA_SurvivorInput;
 struct FInputActionValue;
@@ -42,4 +43,23 @@ private:
 	FVector GetMoveForwardDirection() const;
 public:
 	virtual void PossessedBy(AController* NewController) override;
+
+
+	UFUNCTION(BlueprintCallable)
+	void AddUniqueTag(FGameplayTag Tag);
+	
+	UFUNCTION(Server, Reliable)
+	void ServerAddUniqueTag(const FGameplayTag& Tag);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveTag(FGameplayTag Tag);
+
+	UFUNCTION(Server, Reliable)
+	void ServerRemoveTag(const FGameplayTag& Tag);
+
+	UFUNCTION(BlueprintCallable)
+	void PrintHasTag(FGameplayTag Tag);
+
+	UFUNCTION(Server, Reliable)
+	void ServerPrintHasTag(const FGameplayTag& Tag);
 };

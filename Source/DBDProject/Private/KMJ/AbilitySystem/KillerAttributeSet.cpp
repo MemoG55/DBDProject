@@ -6,7 +6,7 @@
 
 UKillerAttributeSet::UKillerAttributeSet()
 {
-	InitWalkingSpeed(4.6f);
+	InitWalkingSpeed(460.f);
 	InitStunRate(1.f);
 	InitPickUpSpeedRate(1.f);
 	InitTerrorRadiusRange(32.f);

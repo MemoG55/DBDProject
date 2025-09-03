@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
+#include "Abilities/GameplayAbility.h"
 #include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
 #include "Shared/Interface/Interactable.h"
@@ -12,8 +14,23 @@ DECLARE_DELEGATE_OneParam(FOnObjectInteract, AActor*)
 DECLARE_DELEGATE(FOnObjectComplete)
 DECLARE_DELEGATE_OneParam(FOnObjectDisconnect, AActor*)
 
+USTRUCT(BlueprintType)
+struct FSlotAnimData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName SlotName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* Montage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimSequence* Sequence;
+};
+
 UCLASS()
-class DBDPROJECT_API ADBDObject : public AActor, public IInteractable
+class DBDPROJECT_API ADBDObject : public AActor, public IInteractable, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -29,15 +46,20 @@ public:
 	FOnObjectDisconnect OnDisconnect;
 
 	// 정보시스템컴포넌트 (오라, 시각+청각 알림)
-
+	
 	// AbilitySystem
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleDefaultsOnly)
 	class UObjAbilitySystemComponent* ObjAbilitySystemComponent;
 
 	UPROPERTY()
 	class UObjAttributeSet* ObjAttributeSet;
 
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
 	void Init();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UGameplayAbility> TestAbility;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,  Category = "Object")
@@ -55,7 +77,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	virtual void Interaction(AActor* Actor) const override;
+	virtual void Interaction_Implementation(AActor* Actor) override;
 
 	UFUNCTION()
 	virtual void OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -119,4 +141,22 @@ protected:
 	// 발전기같은 여러명이 상호작용할 수 있는 오브젝트에서 사용
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	TArray<TWeakObjectPtr<AActor>> CurrentCachedInteractors;
+
+	UPROPERTY(ReplicatedUsing = OnRep_IsActive)
+	bool bIsActive;
+
+	UFUNCTION()
+	void OnRep_IsActive();
+	
+#pragma region Animation
+	// 실행할 몽타주 모음
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TArray<FSlotAnimData> AnimData;
+#pragma endregion
+public:
+	
+	UFUNCTION(Server, Reliable)
+	void Server_AddTagToObject(FGameplayTag Tag);
 };
+
+

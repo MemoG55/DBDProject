@@ -27,7 +27,7 @@ ASurvivorCharacter::ASurvivorCharacter()
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.0f, 0.f);
 
 	GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
-	GetMesh()->SetRelativeRotation(FRotator(0.f, 0.f, -90.f));
+	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 }
 
 void ASurvivorCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -112,4 +112,46 @@ FVector ASurvivorCharacter::GetMoveForwardDirection() const
 void ASurvivorCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+}
+
+void ASurvivorCharacter::AddUniqueTag(FGameplayTag Tag)
+{
+	ServerAddUniqueTag(Tag);
+}
+
+void ASurvivorCharacter::RemoveTag(FGameplayTag Tag)
+{
+	ServerRemoveTag(Tag);
+}
+
+void ASurvivorCharacter::PrintHasTag(FGameplayTag Tag)
+{
+	ServerPrintHasTag(Tag);
+}
+
+void ASurvivorCharacter::ServerPrintHasTag_Implementation(const FGameplayTag& Tag)
+{
+	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JMS : Tag exist"))
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JMS : Tag does not exist"))
+	}
+}
+
+void ASurvivorCharacter::ServerRemoveTag_Implementation(const FGameplayTag& Tag)
+{
+	GetAbilitySystemComponent()->RemoveLooseGameplayTag(Tag);
+	GetAbilitySystemComponent()->RemoveReplicatedLooseGameplayTag(Tag);
+}
+
+void ASurvivorCharacter::ServerAddUniqueTag_Implementation(const FGameplayTag& Tag)
+{
+	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag))
+	{
+		GetAbilitySystemComponent()->AddLooseGameplayTag(Tag);
+		GetAbilitySystemComponent()->AddReplicatedLooseGameplayTag(Tag);
+	}
 }

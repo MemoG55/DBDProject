@@ -4,6 +4,7 @@
 #include "MMJ/Object/AnimInstance/DBDObjectAnimInstance.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "MMJ/Object/ObjFunctionLibrary.h"
 
 void UDBDObjectAnimInstance::NativeInitializeAnimation()
 {
@@ -45,10 +46,7 @@ bool UDBDObjectAnimInstance::DoesObjHasTag(FGameplayTag Tag) const
 {
 	if (OwningObject)
 	{
-		if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwningObject))
-		{
-			return ASC->HasMatchingGameplayTag(Tag);
-		}
+		return UObjFunctionLibrary::ActorHasGameplayTag(OwningObject, Tag);
 	}
 	return false;
 }

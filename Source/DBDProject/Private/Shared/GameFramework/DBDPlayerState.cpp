@@ -3,11 +3,15 @@
 
 #include "Shared/GameFramework/DBDPlayerState.h"
 
+#include "JMS/GAS/SurvivorAttributeSet.h"
+#include "KMJ/AbilitySystem/KillerAttributeSet.h"
 #include "Shared/GAS/DBDAbilitySystemComponent.h"
 
 ADBDPlayerState::ADBDPlayerState()
 {
 	DBDAbilitySystemComponent = CreateDefaultSubobject<UDBDAbilitySystemComponent>("DBDAbilitySystemComponent");
+	DBDAbilitySystemComponent->SetIsReplicated(true);
+	NetUpdateFrequency = 100.0f;
 	PlayerRole = EPlayerRole::Survivor;
 }
 
@@ -25,4 +29,18 @@ EPlayerRole ADBDPlayerState::SetPlayerRole(EPlayerRole NewRole)
 {
 	PlayerRole = NewRole;
 	return PlayerRole;
+}
+
+void ADBDPlayerState::InitAttributeSet()
+{
+	if (PlayerRole == EPlayerRole::Killer)
+	{
+		UKillerAttributeSet* KillerAttributeSet = NewObject<UKillerAttributeSet>(this);
+		DBDAbilitySystemComponent->AddAttributeSetSubobject(KillerAttributeSet);
+	}
+	else
+	{
+		USurvivorAttributeSet* SurvivorAttributeSet = NewObject<USurvivorAttributeSet>(this);
+		DBDAbilitySystemComponent->AddAttributeSetSubobject(SurvivorAttributeSet);
+	}
 }

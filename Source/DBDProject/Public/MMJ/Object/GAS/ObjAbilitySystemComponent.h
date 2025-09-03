@@ -15,8 +15,12 @@ class DBDPROJECT_API UObjAbilitySystemComponent : public UDBDAbilitySystemCompon
 	GENERATED_BODY()
 public:
 	UObjAbilitySystemComponent();
+	
+	UFUNCTION(BlueprintCallable)
+	class ADBDObject* GetOwnerActorFromActorInfo();
 
 	void TaskUpdated(const FOnAttributeChangeData& OnAttributeChangeData);
+
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "GA")
@@ -31,5 +35,8 @@ public:
 
 	void ServerSideInit();
 	void InitializeBaseAttributes();
+
+	bool IsMaxTask() const;
+
 	
 };

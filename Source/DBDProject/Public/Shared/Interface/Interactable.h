@@ -22,6 +22,7 @@ class DBDPROJECT_API IInteractable
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void Interaction(AActor* Actor) const = 0;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void Interaction(AActor* Actor);
 	
 };

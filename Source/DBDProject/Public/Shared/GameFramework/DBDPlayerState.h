@@ -31,7 +31,10 @@ public:
 	// IAbilitySystemInterface
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	UFUNCTION(BlueprintCallable, Category = "PlayerRole")
+
 	EPlayerRole GetPlayerRole() const;
 	UFUNCTION(BlueprintCallable, Category = "PlayerRole")
 	EPlayerRole SetPlayerRole(EPlayerRole NewRole);
+
+	void InitAttributeSet();
 };
