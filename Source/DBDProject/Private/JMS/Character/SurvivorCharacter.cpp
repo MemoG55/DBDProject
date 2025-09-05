@@ -3,6 +3,7 @@
 
 #include "JMS/Character/SurvivorCharacter.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "InputActionValue.h"
 #include "Camera/CameraComponent.h"
@@ -129,6 +130,16 @@ void ASurvivorCharacter::PrintHasTag(FGameplayTag Tag)
 	ServerPrintHasTag(Tag);
 }
 
+void ASurvivorCharacter::SendGameplayTagEvent(FGameplayTag Tag)
+{
+	ServerSendGameplayTagEvent(Tag);
+}
+
+void ASurvivorCharacter::ServerSendGameplayTagEvent_Implementation(const FGameplayTag& Tag)
+{
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, FGameplayEventData());
+}
+
 void ASurvivorCharacter::ServerPrintHasTag_Implementation(const FGameplayTag& Tag)
 {
 	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag))
@@ -149,7 +160,7 @@ void ASurvivorCharacter::ServerRemoveTag_Implementation(const FGameplayTag& Tag)
 
 void ASurvivorCharacter::ServerAddUniqueTag_Implementation(const FGameplayTag& Tag)
 {
-	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag))
+	if (!GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag))
 	{
 		GetAbilitySystemComponent()->AddLooseGameplayTag(Tag);
 		GetAbilitySystemComponent()->AddReplicatedLooseGameplayTag(Tag);

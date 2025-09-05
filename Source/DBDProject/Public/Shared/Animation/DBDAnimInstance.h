@@ -18,6 +18,8 @@ class DBDPROJECT_API UDBDAnimInstance : public UAnimInstance
 public:
 	UDBDAnimInstance();
 	virtual void InitializeWithAbilitySystem(UAbilitySystemComponent* ASC);
+
+	virtual void NativeBeginPlay() override;
 protected:
 
 #if WITH_EDITOR

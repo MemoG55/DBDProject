@@ -19,10 +19,19 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "GEs")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GE")
+	TSubclassOf<UGameplayEffect> ActiveEffect;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "GE")
+	TSubclassOf<UGameplayEffect> DestroyEffect;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "GA")
 	TArray<TSubclassOf<UGameplayAbility>> InitializedAbilities;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GA")
 	TSubclassOf<UGameplayAbility> ActiveAbility;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GA")
+	TSubclassOf<UGameplayAbility> DestroyAbility;
 };

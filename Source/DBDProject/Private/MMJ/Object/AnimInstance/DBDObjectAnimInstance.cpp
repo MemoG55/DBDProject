@@ -6,6 +6,10 @@
 #include "AbilitySystemComponent.h"
 #include "MMJ/Object/ObjFunctionLibrary.h"
 
+UDBDObjectAnimInstance::UDBDObjectAnimInstance()
+{
+}
+
 void UDBDObjectAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
@@ -16,6 +20,11 @@ void UDBDObjectAnimInstance::NativeInitializeAnimation()
 void UDBDObjectAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+}
+
+void UDBDObjectAnimInstance::NativeBeginPlay()
+{
+	Super::NativeBeginPlay();
 }
 
 void UDBDObjectAnimInstance::UpdateProgress(float NewValue)

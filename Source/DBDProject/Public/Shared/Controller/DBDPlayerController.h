@@ -21,4 +21,12 @@ private:
 public:
 	UPROPERTY(VisibleDefaultsOnly,BlueprintReadOnly, Category = "UI")
 	UCommonActivatableWidget* UIBase;
+
+protected:
+	// Server Only
+	virtual void OnPossess(APawn* InPawn) override;
+public:
+
+	// Client Only
+	virtual void AcknowledgePossession(class APawn* P) override;
 };

@@ -6,11 +6,13 @@
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerState.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "KMJ/AbilitySystem/KillerAbilitySystemComponent.h"
 #include "KMJ/AbilitySystem/KillerAttributeSet.h"
 #include "KMJ/DataAsset/DA_KillerInput.h"
+#include "Shared/GameFramework/DBDPlayerState.h"
 
 AKillerCharacter::AKillerCharacter()
 {
@@ -26,18 +28,31 @@ AKillerCharacter::AKillerCharacter()
 	//메시 -90도 돌려놓아 정면으로 조정
 	GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 
-	KillerAbilitySystemComponent = CreateDefaultSubobject<UKillerAbilitySystemComponent>(TEXT("KillerAbilitySystemComponent"));
-	KillerAttributeSet = CreateDefaultSubobject<UKillerAttributeSet>(TEXT("KillerAttributeSet"));
+	//KillerAbilitySystemComponent = CreateDefaultSubobject<UKillerAbilitySystemComponent>(TEXT("KillerAbilitySystemComponent"));
+	//KillerAttributeSet = CreateDefaultSubobject<UKillerAttributeSet>(TEXT("KillerAttributeSet"));
 
-	if (KillerAttributeSet)
+	/*if (KillerAttributeSet)
 	{
-		InitKillerAttribute();
-	}
+		AKillerCharacter::InitKillerAttribute();
+	}*/
 }
 
-UAbilitySystemComponent* AKillerCharacter::GetAbilitySystemComponent() const
+/*UAbilitySystemComponent* AKillerCharacter::GetAbilitySystemComponent() const
 {
-	return KillerAbilitySystemComponent;
+	//ADBDPlayerState* PlayerState = Cast<ADBDPlayerState>(GetPlayerState());
+	return PlayerState->GetAbilitySystemComponent();
+}*/
+
+void AKillerCharacter::ServerSideInit()
+{
+	//KillerAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	//KillerAbilitySystemComponent->ApplyInitializeEffects();
+	//KillerAbilitySystemComponent->OperatingInitializedAbilities();
+}
+
+void AKillerCharacter::ClientSideInit()
+{
+	//KillerAbilitySystemComponent->ApplyInitializeEffects();
 }
 
 void AKillerCharacter::BeginPlay()
@@ -86,6 +101,10 @@ void AKillerCharacter::Tick(float DeltaSeconds)
 void AKillerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	if (NewController && !NewController->IsPlayerController())
+	{
+		ServerSideInit();
+	}
 }
 
 void AKillerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -126,7 +145,7 @@ void AKillerCharacter::PawnClientRestart()
 
 void AKillerCharacter::InitKillerAttribute()
 {
-	GetCharacterMovement()->MaxWalkSpeed = KillerAttributeSet->WalkingSpeed.GetCurrentValue();
+	
 }
 
 void AKillerCharacter::AbilityInput(const FInputActionValue& InputActionValue, EKillerAbilityInputID InputID)

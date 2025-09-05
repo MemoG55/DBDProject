@@ -36,6 +36,10 @@ public:
 	void ServerSideInit();
 	void InitializeBaseAttributes();
 
+	UFUNCTION(BlueprintCallable)
+	const UObjDataAsset* GetObjDataAsset() const;
+
+	UFUNCTION(BlueprintCallable)
 	bool IsMaxTask() const;
 
 	

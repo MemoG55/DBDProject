@@ -25,12 +25,12 @@ void ADBDGameMode::PostLogin(APlayerController* NewPlayer)
 		if (CurrentCount == 1) // 첫 번째 플레이어
 		{
 			PS->SetPlayerRole(EPlayerRole::Killer);
-			PS->InitAttributeSet();
+			PS->AuthInitAttributeSet();
 		}
 		else
 		{
 			PS->SetPlayerRole(EPlayerRole::Survivor);
-			PS->InitAttributeSet();
+			PS->AuthInitAttributeSet();
 		}
 	}
 	// 역할 지정 후에 HandleStartingNewPlayer() 호출(캐릭터 스폰)
@@ -43,6 +43,10 @@ void ADBDGameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 
 	ADBDPlayerState* PS = NewPlayer->GetPlayerState<ADBDPlayerState>();
+	if (!PS)
+	{
+		return;
+	}
 	UE_LOG(LogTemp, Warning, TEXT("JMS : %s : PlayerRole: %s"), *GetNameSafe(this),
 	       *(StaticEnum<EPlayerRole>()->GetNameStringByValue((int64)(PS->GetPlayerRole()))));
 	// 역할 별 캐릭터 스폰, ASC 초기화 후 Possess

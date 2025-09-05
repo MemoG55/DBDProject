@@ -21,10 +21,12 @@ class DBDPROJECT_API AKillerCharacter : public ADBDCharacter
 public:
 	AKillerCharacter();
 
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	//virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual void ServerSideInit();
+	virtual void ClientSideInit();
 private:
-	UPROPERTY(VisibleDefaultsOnly, Category="GAS")
-	class UKillerAbilitySystemComponent* KillerAbilitySystemComponent;
+	//UPROPERTY(VisibleDefaultsOnly, Category="GAS")
+	//class UKillerAbilitySystemComponent* KillerAbilitySystemComponent;
 	
 protected:
 	UPROPERTY(VisibleDefaultsOnly, Category="View")
@@ -39,18 +41,19 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="DataControl", meta=(AllowPrivateAccess="true"))
 	UDA_KillerInput* InputData;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem", meta = (AllowPrivateAccess = "true"))
-	UKillerAttributeSet* KillerAttributeSet;
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem", meta = (AllowPrivateAccess = "true"))
+	//UKillerAttributeSet* KillerAttributeSet;
 
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, category = "StartupData")
 	//TSoftObjectPtr<UDataAsset_Startup> StartupData;
-	
+
+public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PawnClientRestart() override;
-
+	
 	virtual void InitKillerAttribute();
 	
 private:

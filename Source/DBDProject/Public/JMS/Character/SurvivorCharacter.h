@@ -62,4 +62,10 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerPrintHasTag(const FGameplayTag& Tag);
+
+	UFUNCTION(BlueprintCallable)
+	void SendGameplayTagEvent(FGameplayTag Tag);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSendGameplayTagEvent(const FGameplayTag& Tag);
 };

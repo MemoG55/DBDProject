@@ -12,8 +12,17 @@ UDBDAnimInstance::UDBDAnimInstance()
 
 void UDBDAnimInstance::InitializeWithAbilitySystem(UAbilitySystemComponent* ASC)
 {
-	check(ASC);
-	GameplayTagPropertyMap.Initialize(this, ASC);
+	if (ASC)
+	{
+		GameplayTagPropertyMap.Initialize(this, ASC);
+	}
+}
+
+
+// Possess로직이 먼저 실행되어야 ADBDCharacter의 ASC에 접근이 가능합니다.
+void UDBDAnimInstance::NativeBeginPlay()
+{
+	Super::NativeBeginPlay();
 }
 
 #if WITH_EDITOR
@@ -30,13 +39,6 @@ EDataValidationResult UDBDAnimInstance::IsDataValid(class FDataValidationContext
 void UDBDAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
-	if (AActor* OwningActor = GetOwningActor())
-	{
-		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwningActor))
-		{
-			InitializeWithAbilitySystem(ASC);
-		}
-	}
 }
 
 void UDBDAnimInstance::NativeUpdateAnimation(float DeltaSeconds)

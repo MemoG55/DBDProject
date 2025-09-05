@@ -6,9 +6,13 @@
 #include "MMJ/Object/DBDObject.h"
 #include "MMJ/Object/DataAsset/ObjDataAsset.h"
 #include "MMJ/Object/GAS/ObjAttributeSet.h"
+#include "Shared/DBDGameplayTags.h"
 
 UObjAbilitySystemComponent::UObjAbilitySystemComponent()
 {
+	// Current Task 가 업데이트될때마다 델리게이트 연결
+	GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetCurrentTaskAttribute()).AddUObject(
+		this, &ThisClass::TaskUpdated);
 }
 
 class ADBDObject* UObjAbilitySystemComponent::GetOwnerActorFromActorInfo()
@@ -24,17 +28,14 @@ void UObjAbilitySystemComponent::TaskUpdated(const FOnAttributeChangeData& OnAtt
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority()) return;
 
-	if (IsMaxTask()) return;
-
-	bool bFound = false;
-	float MaxTask = GetGameplayAttributeValue(UObjAttributeSet::GetMaxTaskAttribute(), bFound);
-	
-	if (bFound && OnAttributeChangeData.NewValue >= MaxTask)
+	if (IsMaxTask())
 	{
 		if (ADBDObject* Owner = GetOwnerActorFromActorInfo())
 		{
 			// 수리 또는 상호작용이 완료되었을 경우 델리게이트
-			Owner->OnComplete.Execute();
+			Owner->OnComplete.Broadcast();
+			AddLooseGameplayTag(DBDGameplayTags::Object_Status_IsComplete);
+			RemoveLooseGameplayTag(DBDGameplayTags::Object_Status_IsActive);
 		}
 	}
 }
@@ -76,7 +77,6 @@ void UObjAbilitySystemComponent::OperatingInitializedAbilities()
 	{
 		FGameplayAbilitySpec Spec = FGameplayAbilitySpec(ObjDataAsset->ActiveAbility, 1, 1, nullptr);
 		GiveAbility(Spec);
-		UE_LOG(LogTemp, Warning, TEXT("ActiveAbility Set in %s -> %s"), *GetOwner()->GetName(), *ObjDataAsset->ActiveAbility->GetName() );
 	}
 }
 
@@ -90,8 +90,20 @@ void UObjAbilitySystemComponent::InitializeBaseAttributes()
 {
 }
 
+const UObjDataAsset* UObjAbilitySystemComponent::GetObjDataAsset() const
+{
+	return ObjDataAsset;
+}
+
 bool UObjAbilitySystemComponent::IsMaxTask() const
 {
+	bool bFound = false;
+	float CurrentTask = GetGameplayAttributeValue(UObjAttributeSet::GetCurrentTaskAttribute(), bFound);
+	float MaxTask = GetGameplayAttributeValue(UObjAttributeSet::GetMaxTaskAttribute(), bFound);
+	if (bFound && CurrentTask >= MaxTask)
+	{
+		return true;
+	}
 	return false;
 }
 

@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "{F151778B-4260-9509-4C99-EC9524608A15}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -11,7 +11,8 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"AdvancedSessions",
-				"GameplayAbilities"
+				"GameplayAbilities",
+				"CoreUObject"
 			]
 		}
 	],

@@ -7,6 +7,7 @@
 #include "Shared/GAS/GA/DBDGameplayAbility.h"
 #include "ObjGameplayAbility.generated.h"
 
+class ADBDObject;
 /**
  * 
  */
@@ -20,6 +21,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "GA")
 	UAnimInstance* GetAnimInstance() const;
+
+	UFUNCTION(BlueprintPure, Category = "GA")
+	ADBDObject* GetOwnerObjectFromActorInfo();
 
 protected:
 	UPROPERTY()
