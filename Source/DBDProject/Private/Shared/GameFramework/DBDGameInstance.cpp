@@ -3,3 +3,10 @@
 
 #include "Shared/GameFramework/DBDGameInstance.h"
 
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+
+void UDBDGameInstance::Init()
+{
+	Super::Init();
+}

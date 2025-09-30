@@ -18,6 +18,11 @@ void UObjAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMod
 	{
 		SetCurrentTask(FMath::Clamp(GetCurrentTask(), 0.f, GetMaxTask()));
 	}
+
+	if (Data.EvaluatedData.Attribute == GetCurrentDamageAttribute())
+	{
+		SetCurrentDamage(FMath::Clamp(GetCurrentDamage(), 0.f, GetMaxDamage()));
+	}
 }
 
 void UObjAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -27,6 +32,11 @@ void UObjAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 	if (Attribute == GetCurrentTaskAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxTask());
+	}
+
+	if (Attribute == GetCurrentDamageAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxDamage());
 	}
 }
 
@@ -53,6 +63,9 @@ void UObjAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty
 	// Replicate
 	DOREPLIFETIME_CONDITION_NOTIFY(UObjAttributeSet, MaxTask, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UObjAttributeSet, CurrentTask, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UObjAttributeSet, MaxDamage, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UObjAttributeSet, CurrentDamage, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UObjAttributeSet, RecoverTask, COND_None, REPNOTIFY_Always);
 }
 
 void UObjAttributeSet::OnRep_MaxTask(const FGameplayAttributeData& OldValue)
@@ -63,4 +76,19 @@ void UObjAttributeSet::OnRep_MaxTask(const FGameplayAttributeData& OldValue)
 void UObjAttributeSet::OnRep_CurrentTask(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UObjAttributeSet, CurrentTask, OldValue);
+}
+
+void UObjAttributeSet::OnRep_MaxDamage(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UObjAttributeSet, MaxDamage, OldValue);
+}
+
+void UObjAttributeSet::OnRep_CurrentDamage(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UObjAttributeSet, CurrentDamage, OldValue);
+}
+
+void UObjAttributeSet::OnRep_RecoverTask(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UObjAttributeSet, RecoverTask, OldValue);
 }

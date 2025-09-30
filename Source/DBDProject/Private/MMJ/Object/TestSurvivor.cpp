@@ -4,19 +4,30 @@
 #include "MMJ/Object/TestSurvivor.h"
 
 #include "AbilitySystemComponent.h"
+#include "GameFramework/PlayerState.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "MMJ/Object/DBDObject.h"
-#include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
-#include "MMJ/Object/GAS/GE/ObjGE_Active.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
+#include "Net/UnrealNetwork.h"
 #include "Shared/DBDBlueprintFunctionLibrary.h"
+#include "Shared/DBDDebugHelper.h"
 #include "Shared/DBDGameplayTags.h"
+#include "Shared/Component/InteractableComponent.h"
 
-void ATestSurvivor::TryInteract()
+APlayerController* ATestSurvivor::GetPlayerController()
 {
+	return Cast<APlayerController>(GetController());
+}
+
+void ATestSurvivor::TryInteract(bool& Result)
+{
+	//if (!GetController()->IsLocalPlayerController()) return;
+	if (!bCanInteract) return;
+
 	TArray<AActor*> AllActors;
 	TArray<FHitResult> HitResults;
 	UKismetSystemLibrary::SphereTraceMulti(GetWorld(), GetActorLocation(), GetActorLocation(), 150.f,
-		ETraceTypeQuery::TraceTypeQuery1, false, AllActors, EDrawDebugTrace::Type::ForDuration, HitResults, true);
+		TraceTypeQuery1, false, AllActors, EDrawDebugTrace::Type::ForDuration, HitResults, true);
 
 	TSet<AActor*> UniqueActors;
 	for (const FHitResult& HitResult : HitResults)
@@ -24,54 +35,121 @@ void ATestSurvivor::TryInteract()
 		if (ADBDObject* Obj = Cast<ADBDObject>(HitResult.GetActor()))
 		{
 			UniqueActors.Add(Obj);
-		}		
+		}
 	}
-
+	
 	for (AActor* Actor : UniqueActors)
 	{
 		if (ADBDObject* Obj = Cast<ADBDObject>(Actor))
 		{
-			Interact_Object(Obj);
+			Server_Interact(Obj);
+			// ServerImplementation 함수에서 실행하는 SetActorRotation 은 복제된 애들만 돌아가고, 클라이언트에서는 적용되지 않는 문제.
+			FRotator LookRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Obj->GetActorLocation());
+			LookRotation.Pitch = 0;
+			//SetActorRotation(LookRotation);
+			Result = true;
+			//Client_Interact(Obj);
+			break;
 		}		
 	}
+	
 }
+
 
 void ATestSurvivor::CancelInteract()
 {
-	//CachedCurrentInteractObject->OnDisconnect.AddUObject()
+	if (CachedCurrentInteractObject)
+	{
+		Server_Disconnect(CachedCurrentInteractObject);
+	}
 }
 
-void ATestSurvivor::SkillCheck()
-{
-}
-
-void ATestSurvivor::Interact_Object_Implementation(ADBDObject* Object)
+void ATestSurvivor::Client_Interact(ADBDObject* Object)
 {
 	if (IsValid(Object))
 	{
 		if (UAbilitySystemComponent* ASC = Object->GetAbilitySystemComponent())
 		{
-			if (Object->CanInteraction(this))
+			if (Object->GetInteractableComponent() && Object->GetInteractableComponent()->CanInteraction(this))
 			{
 				CachedCurrentInteractObject = Object;
-				Object->Execute_Interaction(Object, this);
-
-				
-				// 태그부여 활성화 (발전기 -> 수리작업, 탈출구 -> 개방, 갈고리 -> 엔티티, 캐비닛 -> 숨기;애니메이션만, 상자 -> 열고 아이템, 판자 -> 부수기/넘어가기/쓰러트리기)
-				if (!UDBDBlueprintFunctionLibrary::NativeActorHasTag(Object, DBDGameplayTags::Object_Status_IsActive))
-				{
-					// 1. 단순 태그만 부여하는 방식
-					//ASC->AddLooseGameplayTag(DBDGameplayTags::Object_Status_IsActive);
-					
-					// 2. GE를 넘기는 방식
-					//FGameplayEffectContextHandle SpecHandle = ASC->MakeEffectContext();
-					//FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UObjGE_Active::StaticClass(), 1, SpecHandle);
-					//ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-				}
+				Object->GetInteractableComponent()->BeginInteraction(this);
 			}
-			//CachedCurrentInteractObject = nullptr;
-			//Object->EndInteraction(this);
-			//ASC->RemoveLooseGameplayTag(DBDGameplayTags::Object_Status_IsActive);
+		}
+	}
+}
+
+void ATestSurvivor::SetCanInteract(bool Result)
+{
+	bCanInteract = Result;
+}
+
+void ATestSurvivor::GetSurvivor()
+{
+	
+	TArray<AActor*> AllActors;
+	TArray<FHitResult> HitResults;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectType;
+	ObjectType.Add(EObjectTypeQuery::ObjectTypeQuery3);
+	UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), GetActorLocation(), GetActorLocation(), 150.f, ObjectType, false, AllActors,
+		EDrawDebugTrace::ForDuration, HitResults, true);
+	//UKismetSystemLibrary::SphereTraceMulti(GetWorld(), GetActorLocation(), GetActorLocation(), 150.f,
+		//TraceTypeQuery1, false, AllActors, EDrawDebugTrace::Type::ForDuration, HitResults, true);
+
+	TSet<AActor*> UniqueActors;
+	for (const FHitResult& HitResult : HitResults)
+	{
+		if (ADBDCharacter* Actor = Cast<ADBDCharacter>(HitResult.GetActor()))
+		{
+			if (Actor != this)
+			{
+				UniqueActors.Add(Actor);
+			}
+		}
+	}
+	
+	for (AActor* Actor : UniqueActors)
+	{
+		SetSurvivor(Cast<ADBDCharacter>(Actor));
+		break;
+	}
+	
+}
+
+void ATestSurvivor::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+}
+
+void ATestSurvivor::SetSurvivor_Implementation(ADBDCharacter* Actor)
+{
+	if (!Actor) return;
+	Survivor = Actor;
+}
+
+
+
+void ATestSurvivor::Server_Disconnect_Implementation(ADBDObject* Object)
+{
+	if (IsValid(Object))
+	{
+		Object->GetInteractableComponent()->EndInteraction(this);
+	}
+	CachedCurrentInteractObject = nullptr;
+}
+
+void ATestSurvivor::Server_Interact_Implementation(ADBDObject* Object)
+{
+			Debug::Print(TEXT("MMJ : InteractTry"), 12);
+	if (IsValid(Object))
+	{
+		if (UAbilitySystemComponent* ASC = Object->GetAbilitySystemComponent())
+		{
+			if (Object->GetInteractableComponent() && Object->GetInteractableComponent()->CanInteraction(this))
+			{
+				CachedCurrentInteractObject = Object;
+				Object->GetInteractableComponent()->BeginInteraction(this);
+			}
 		}
 	}
 }

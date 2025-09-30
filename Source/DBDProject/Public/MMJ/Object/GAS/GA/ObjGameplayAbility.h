@@ -7,6 +7,7 @@
 #include "Shared/GAS/GA/DBDGameplayAbility.h"
 #include "ObjGameplayAbility.generated.h"
 
+class UInteractableComponent;
 class ADBDObject;
 /**
  * 
@@ -25,6 +26,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "GA")
 	ADBDObject* GetOwnerObjectFromActorInfo();
 
+	UFUNCTION(BlueprintPure, Category = "GA")
+	UInteractableComponent* GetInteractableComponentFromActorInfo();
 protected:
 	UPROPERTY()
 	FTimerHandle TaskTimerHandle;

@@ -7,6 +7,19 @@
 #include "Engine/DataAsset.h"
 #include "ObjDataAsset.generated.h"
 
+USTRUCT(BlueprintType)
+struct FObjGEStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UGameplayEffect> GameplayEffect;
+
+	UPROPERTY(EditAnywhere)
+	bool bRemoveWhenFinish = true;
+};
+
+
 /**
  * 
  */
@@ -17,21 +30,49 @@ class DBDPROJECT_API UObjDataAsset : public UDataAsset
 
 public:
 	
-	UPROPERTY(EditDefaultsOnly, Category = "GEs")
+	UPROPERTY(EditDefaultsOnly, Category = "InitialGEs")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
 
-	UPROPERTY(EditDefaultsOnly, Category = "GE")
-	TSubclassOf<UGameplayEffect> ActiveEffect;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "GE")
+	// 진행도 상승 GE (발전기 : 수리이펙트, 갈고리 : 출혈?, 문 : 가동 등등)
+	UPROPERTY(EditDefaultsOnly, Category = "ActiveGEs")
+	TSubclassOf<UGameplayEffect> ActivateEffect;
+
+	// 진행도 상승 후 추가되는 GE
+	UPROPERTY(EditDefaultsOnly, Category = "ActiveGEs")
+	TArray<FObjGEStruct> ActiveAdditionalEffects;
+
+	// 진행도 하락 GE (발전기 : 손상, 갈고리 : 파괴공작 등등)
+	UPROPERTY(EditDefaultsOnly, Category = "DestroyGEs")
 	TSubclassOf<UGameplayEffect> DestroyEffect;
+
+	// 진행도 하락 후 추가되는 GE
+	UPROPERTY(EditDefaultsOnly, Category = "DestroyGEs")
+	TArray<FObjGEStruct> DestroyAdditionalEffects;
+
+	// 진행도 완료 GE
+	UPROPERTY(EditDefaultsOnly, Category = "CompleteGEs")
+	TSubclassOf<UGameplayEffect> CompleteEffect;
+
+	// 진행도 완료 후 추가되는 GE
+	UPROPERTY(EditDefaultsOnly, Category = "CompleteGEs")
+	TArray<FObjGEStruct> CompleteAdditionalEffect;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "GA")
+	UPROPERTY(EditDefaultsOnly, Category = "InitalGAs")
 	TArray<TSubclassOf<UGameplayAbility>> InitializedAbilities;
 
-	UPROPERTY(EditDefaultsOnly, Category = "GA")
+	// 진행도 상승 GA
+	UPROPERTY(EditDefaultsOnly, Category = "ActivateGA")
 	TSubclassOf<UGameplayAbility> ActiveAbility;
 
-	UPROPERTY(EditDefaultsOnly, Category = "GA")
+	// 진행도 하락 GA
+	UPROPERTY(EditDefaultsOnly, Category = "DestroyGA")
 	TSubclassOf<UGameplayAbility> DestroyAbility;
+
+	// 스킬체크 이벤트 Success시 적용될 이펙트
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGEs")
+	TArray<FObjGEStruct> SkillCheckSuccessEffects;
+
+	// 스킬체크 이벤트 Fail시 적용될 이펙트
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGEs")
+	TArray<FObjGEStruct> SkillCheckFailureEffects;
 };

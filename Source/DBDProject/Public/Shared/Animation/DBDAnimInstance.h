@@ -10,6 +10,8 @@
 /**
  * 
  */
+class ACharacter;
+class UCharacterMovementComponent;
 UCLASS()
 class DBDPROJECT_API UDBDAnimInstance : public UAnimInstance
 {
@@ -28,6 +30,7 @@ protected:
 
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
 protected:
 
@@ -35,5 +38,12 @@ protected:
 	// These should be used instead of manually querying for the gameplay tags.
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
 	FGameplayTagBlueprintPropertyMap GameplayTagPropertyMap;
+private:
+	UPROPERTY()
+	class ACharacter* CurrentOwnerCharacter;
 
+	UPROPERTY()
+	class UCharacterMovementComponent* CurrentOwnerMovementComponent;
+	
+	float CurrentSpeed;
 };

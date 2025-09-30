@@ -5,17 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "DA_SurvivorInput.generated.h"
+enum class ESurvivorAbilityInputID : uint8;
 class UInputAction;
 class UInputMappingContext;
 
-UENUM(BlueprintType)
-enum class ESurvivorAbilityInputID : uint8
-{
-	None		UMETA(DisplayName = "None"),
-};
-/**
- * 
- */
 UCLASS()
 class DBDPROJECT_API UDA_SurvivorInput : public UDataAsset
 {
@@ -38,6 +31,4 @@ public:
 	UInputAction* IA_UseItem;
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	UInputAction* IA_DropItem;
-	UPROPERTY(EditDefaultsOnly, Category="Input")
-	UInputAction* IA_Interact;
 };

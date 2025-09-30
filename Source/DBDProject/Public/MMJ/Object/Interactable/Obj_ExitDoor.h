@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MMJ/Object/DBDObject.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
 #include "Obj_ExitDoor.generated.h"
 
 /**
@@ -15,6 +15,16 @@ class DBDPROJECT_API AObj_ExitDoor : public ADBDObject
 	GENERATED_BODY()
 
 public:
-	virtual bool CanInteraction(AActor* Actor) override;
+	AObj_ExitDoor(const FObjectInitializer& ObjectInitializer);
+
+	virtual void BeginPlay() override;
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	// UChildActorComponent* ChildActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<ADBDObject> ExitZone;
+
+	UFUNCTION()
+	void CreateExitZone();
 	
 };

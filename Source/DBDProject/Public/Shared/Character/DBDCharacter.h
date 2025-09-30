@@ -7,15 +7,14 @@
 #include "GameFramework/Character.h"
 #include "DBDCharacter.generated.h"
 
+class UInputMappingContext;
+class IInteractable;
 class UPerkInstance;
 
 UCLASS()
 class DBDPROJECT_API ADBDCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
-
-
-private:
 public:
 	ADBDCharacter();
 	// IAbilitySystemInterface
@@ -27,16 +26,26 @@ public:
 	virtual void OnRep_PlayerState() override;
 
 	void InitializePerks(const UDataTable& DataTable, FName Perk1Name, FName Perk2Name, FName Perk3Name, FName Perk4Name);
-
+	virtual void ServerSideInit();
+	virtual void ClientSideInit();
+	
+	UPROPERTY(EditDefaultsOnly, Category = "HUD")
+	TSubclassOf<class UDBDHUD_EndGame> HUD_EndGameClass;
+	UPROPERTY(VisibleAnywhere, Category = "HUD")
+	class UDBDHUD_EndGame* HUD_EndGame;
 protected:
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk1)
+
+	
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk1, Category = "Perk")
 	UPerkInstance* Perk1;
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk2)
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk2, Category = "Perk")
 	UPerkInstance* Perk2;
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk3)
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk3, Category = "Perk")
 	UPerkInstance* Perk3;
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk4)
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_Perk4, Category = "Perk")
 	UPerkInstance* Perk4;
+
+	void AuthInitPerks();
 private:
 	UFUNCTION()
 	void OnRep_Perk1();
@@ -48,4 +57,5 @@ private:
 	void OnRep_Perk4();
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 };

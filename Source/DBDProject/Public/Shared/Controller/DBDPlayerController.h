@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "DBDPlayerController.generated.h"
 
+class ADBDSpectatorCam;
 class UCommonActivatableWidget;
 /**
  * 
@@ -16,17 +17,17 @@ class DBDPROJECT_API ADBDPlayerController : public APlayerController
 	GENERATED_BODY()
 	virtual void BeginPlay() override;
 private:
-	UPROPERTY(EditAnywhere, Category = "UI",meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UUserWidget> UIBaseClass;
+	UPROPERTY()
+	ADBDSpectatorCam* SpectatorCam;
 public:
-	UPROPERTY(VisibleDefaultsOnly,BlueprintReadOnly, Category = "UI")
-	UCommonActivatableWidget* UIBase;
+	void EnterSpectatorCam();
 
+	void CustomCreateWidget();
 protected:
 	// Server Only
-	virtual void OnPossess(APawn* InPawn) override;
+	//virtual void OnPossess(APawn* InPawn) override;
 public:
 
 	// Client Only
-	virtual void AcknowledgePossession(class APawn* P) override;
+	//virtual void AcknowledgePossession(class APawn* P) override;
 };

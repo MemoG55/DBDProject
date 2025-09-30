@@ -3,16 +3,18 @@
 
 #include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
 
-#include "MMJ/Object/DBDObject.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
+#include "MMJ/Object/AnimInstance/DBDObjectAnimInstance.h"
 #include "MMJ/Object/DataAsset/ObjDataAsset.h"
 #include "MMJ/Object/GAS/ObjAttributeSet.h"
+#include "Shared/DBDDebugHelper.h"
 #include "Shared/DBDGameplayTags.h"
+#include "Shared/Component/InteractableComponent.h"
 
 UObjAbilitySystemComponent::UObjAbilitySystemComponent()
 {
-	// Current Task 가 업데이트될때마다 델리게이트 연결
-	GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetCurrentTaskAttribute()).AddUObject(
-		this, &ThisClass::TaskUpdated);
+
+
 }
 
 class ADBDObject* UObjAbilitySystemComponent::GetOwnerActorFromActorInfo()
@@ -33,11 +35,40 @@ void UObjAbilitySystemComponent::TaskUpdated(const FOnAttributeChangeData& OnAtt
 		if (ADBDObject* Owner = GetOwnerActorFromActorInfo())
 		{
 			// 수리 또는 상호작용이 완료되었을 경우 델리게이트
-			Owner->OnComplete.Broadcast();
-			AddLooseGameplayTag(DBDGameplayTags::Object_Status_IsComplete);
-			RemoveLooseGameplayTag(DBDGameplayTags::Object_Status_IsActive);
+			Owner->GetInteractableComponent()->OnComplete.Broadcast();
+			Owner->GetInteractableComponent()->OnCompleteSourceObject.Broadcast(Owner);
 		}
 	}
+}
+
+void UObjAbilitySystemComponent::DamageUpdated(const FOnAttributeChangeData& OnAttributeChangeData)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority()) return;
+
+	if (IsMaxAttribute(UObjAttributeSet::GetMaxDamageAttribute(), UObjAttributeSet::GetCurrentDamageAttribute()))
+	{
+		if (ADBDObject* Owner = GetOwnerActorFromActorInfo())
+		{
+			// 손상이 다 회복되었을 때
+			//Owner->OnComplete.Broadcast();
+			RemoveLooseGameplayTag(DBDGameplayTags::Object_Status_IsDestroy);
+		}
+	}
+}
+
+void UObjAbilitySystemComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (bCanDestroy)
+	{
+		// Current Damage 가 업데이트될때마다 델리게이트 연결
+		GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetCurrentDamageAttribute()).AddUObject(
+			this, &ThisClass::DamageUpdated);
+	}
+	// Current Task 가 업데이트될때마다 델리게이트 연결
+	GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetCurrentTaskAttribute()).AddUObject(
+		this, &ThisClass::TaskUpdated);
 }
 
 
@@ -55,6 +86,8 @@ void UObjAbilitySystemComponent::ApplyInitializeEffects()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())	return;
 
+	if (!ObjDataAsset) return;
+	
 	for (const TSubclassOf<UGameplayEffect>& GE : ObjDataAsset->InitialEffects)
 	{
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(GE, 1, MakeEffectContext());
@@ -66,6 +99,8 @@ void UObjAbilitySystemComponent::ApplyInitializeEffects()
 void UObjAbilitySystemComponent::OperatingInitializedAbilities()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority()) return;
+
+	if (!ObjDataAsset) return;
 	
 	for (const TSubclassOf<UGameplayAbility>& GA : ObjDataAsset->InitializedAbilities)
 	{
@@ -84,15 +119,31 @@ void UObjAbilitySystemComponent::ServerSideInit()
 {
 	ApplyInitializeEffects();
 	OperatingInitializedAbilities();
+	InitializeAnimInstance();
 }
 
 void UObjAbilitySystemComponent::InitializeBaseAttributes()
 {
 }
 
+void UObjAbilitySystemComponent::InitializeAnimInstance()
+{
+	if (AbilityActorInfo->GetAnimInstance())
+	{
+		if (UDBDObjectAnimInstance* AnimInstance = Cast<UDBDObjectAnimInstance>(AbilityActorInfo->GetAnimInstance()))
+		{
+			AnimInstance->InitializeWithAbilitySystem(this);
+		}
+	}
+}
+
 const UObjDataAsset* UObjAbilitySystemComponent::GetObjDataAsset() const
 {
-	return ObjDataAsset;
+	if (ObjDataAsset)
+	{
+		return ObjDataAsset;
+	}
+	return nullptr;
 }
 
 bool UObjAbilitySystemComponent::IsMaxTask() const
@@ -101,6 +152,19 @@ bool UObjAbilitySystemComponent::IsMaxTask() const
 	float CurrentTask = GetGameplayAttributeValue(UObjAttributeSet::GetCurrentTaskAttribute(), bFound);
 	float MaxTask = GetGameplayAttributeValue(UObjAttributeSet::GetMaxTaskAttribute(), bFound);
 	if (bFound && CurrentTask >= MaxTask)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool UObjAbilitySystemComponent::IsMaxAttribute(const FGameplayAttribute& MaxAttribute,
+	const FGameplayAttribute& CurrentAttribute)
+{
+	bool bFound = false;
+	float CurrentValue = GetGameplayAttributeValue(CurrentAttribute, bFound);
+	float MaxValue = GetGameplayAttributeValue(MaxAttribute, bFound);
+	if (bFound && CurrentValue >= MaxValue)
 	{
 		return true;
 	}

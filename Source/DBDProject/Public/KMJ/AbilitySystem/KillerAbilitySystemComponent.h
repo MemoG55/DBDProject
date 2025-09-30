@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "KMJ/DataAsset/DA_KillerGameplayAbilities.h"
 #include "Shared/GAS/DBDAbilitySystemComponent.h"
 #include "KillerAbilitySystemComponent.generated.h"
 class AKillerHuntress;
@@ -15,17 +16,25 @@ class DBDPROJECT_API UKillerAbilitySystemComponent : public UDBDAbilitySystemCom
 	GENERATED_BODY()
 public:
 	UKillerAbilitySystemComponent();
+	
+	virtual void InitializeBaseAttributes() override;
+
 private:
 	UPROPERTY(EditDefaultsOnly, Category="GameplayEffects")
 	TArray<TSubclassOf<UGameplayEffect>> InitialEffects;
-
-	UPROPERTY(EditDefaultsOnly, Category="DataControl")
-	class UDA_KillerGameplayAbilities* GAData;
+	
+	/*UPROPERTY(EditDefaultsOnly, Category="DataControl")
+	class UDA_KillerGameplayAbilities* GAData;*/
 public:
-	void ApplyInitializeEffects();
-	void OperatingInitializedAbilities();
-	void ApplyFullStatEffect();
+	virtual void ApplyInitializeEffects() override;
+	virtual void OperatingInitializedAbilities() override;
+	//void ApplyFullStatEffect();
+
+	FORCEINLINE UDA_KillerGameplayAbilities* GetKillerGAData() const
+	{
+		return Cast<UDA_KillerGameplayAbilities>(DBDASCData);
+	}
 
 private:
-	void AuthApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffect, int Level);
+	virtual void AuthApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffect, int Level) override;
 };

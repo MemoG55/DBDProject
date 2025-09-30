@@ -9,9 +9,17 @@
 /**
  * 
  */
+
+class UDBDDataBase;
+
 UCLASS()
 class DBDPROJECT_API UDBDGameInstance : public UAdvancedFriendsGameInstance
 {
 	GENERATED_BODY()
-	
+
+public:
+	virtual void Init() override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DataBase")
+	UDBDDataBase* DBDDB;
+private:
 };

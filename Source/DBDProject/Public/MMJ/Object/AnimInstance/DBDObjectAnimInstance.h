@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "MMJ/Object/DBDObject.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
 #include "Shared/Animation/DBDAnimInstance.h"
 #include "DBDObjectAnimInstance.generated.h"
 
@@ -27,15 +27,6 @@ public:
 	UFUNCTION()
 	void UpdateProgress(float NewValue);
 
-	UFUNCTION()
-	void SetInteracting(bool NewValue);
-
-	UFUNCTION()
-	void SetBroken(bool NewValue);
-
-	UFUNCTION()
-	void SetActive(bool NewValue);
-
 	UFUNCTION(BlueprintCallable)
 	void SetSlotActive(bool Activation);
 private:
@@ -47,23 +38,15 @@ protected:
 	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe))
 	bool DoesObjHasTag(FGameplayTag Tag) const;
 
-	
+public:
 	// 현재 진행도
-	UPROPERTY(BlueprintReadOnly, Category = "Interaction")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	float InteractionProgress;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Interaction")
-	bool bIsInteracting;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Interaction")
+	// 현재 상호작용중인 사람 수
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	int32 InteractorsCount;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Interaction")
-	bool bIsBroken;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Interaction")
-	bool bIsActive;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Slot")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Slot")
 	TMap<FName, UAnimSequence*> AnimBySlot;
 };

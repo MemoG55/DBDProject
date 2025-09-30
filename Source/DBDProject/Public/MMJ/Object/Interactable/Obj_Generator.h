@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MMJ/Object/DBDObject.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
 #include "Obj_Generator.generated.h"
 
 /**
@@ -15,12 +15,7 @@ class DBDPROJECT_API AObj_Generator : public ADBDObject
 	GENERATED_BODY()
 
 public:
-	AObj_Generator();
-	virtual void StartInteraction(AActor* Actor) override;
-
-	virtual void TickInteraction(AActor* Actor) override;
-
-	virtual float GetTaskSpeedOfInteractors() const override;
+	AObj_Generator(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
 	

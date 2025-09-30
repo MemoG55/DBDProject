@@ -3,7 +3,14 @@
 
 #include "Shared/Perk/PerkInstance.h"
 
+#include "Shared/Character/DBDCharacter.h"
+
+
 void UPerkInstance::OnInitialized()
 {
-	// 자식에서 구현
+}
+
+ADBDCharacter* UPerkInstance::GetOuterAsDBDCharacter()
+{
+	return CastChecked<ADBDCharacter>(GetOuter());
 }

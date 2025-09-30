@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffect.h"
 #include "KMJ/Character/KillerCharacter.h"
 #include "KillerHuntress.generated.h"
 
 struct FInputActionValue;
 class UHuntressAttributeSet;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAbilityGrantedDelegate);
 
 UCLASS()
 class DBDPROJECT_API AKillerHuntress : public AKillerCharacter
@@ -22,16 +22,34 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PawnClientRestart() override;
+	void OnGameplayEffectApplied(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayEffectSpec& GameplayEffectSpec, FActiveGameplayEffectHandle ActiveGameplayEffectHandle);
 	virtual void ServerSideInit() override;
 	virtual void ClientSideInit() override;
+	virtual void BeginPlay() override;
 
-	// 어빌리티 부여 후 호출될 델리게이트 함수
-	UFUNCTION()
-	void OnAbilityGranted();
-	// 델리게이트 변수
-	FOnAbilityGrantedDelegate OnAbilityGrantedDelegate;
-
-protected:
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem", meta = (AllowPrivateAccess = "true"))
 	UHuntressAttributeSet* HuntressAttributeSet;
+
+	// Bind With GA Event
+	//void OnKillerSkillPressed();
+
+	/*
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input")
+	UInputAction* IA_Killer_Skill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input")
+	UInputAction* IA_Killer_Attack;
+	*/
+protected:
+	UPROPERTY(ReplicatedUsing=OnRep_WalkSpeedChanged)
+	float ReplicatedWalkSpeed;
+
+	UFUNCTION()
+	void OnRep_WalkSpeedChanged();
+
+	UFUNCTION(BlueprintCallable)
+	void OnWalkingSpeedChanged(float NewWalkingSpeed);
+
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 };

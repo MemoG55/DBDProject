@@ -23,22 +23,20 @@ protected:
 
 private:
 	UPROPERTY()
-	class AKillerCharacter* OwnerCharacter;
+	class AKillerCharacter* KillerOwnerCharacter;
 
 	UPROPERTY()
-	class UCharacterMovementComponent* OwnerMovementComponent;
+	class UCharacterMovementComponent* KillerOwnerMovementComponent;
 
-	float Speed;
+	float KillerSpeed;
 	
 public:
 	UFUNCTION(BlueprintCallable, Category="KillerStateControl", meta=(BlueprintThreadSafe))
-	FORCEINLINE float GetSpeed() const{return Speed;}
+	FORCEINLINE float GetSpeed() const{return KillerSpeed;}
 
 	UFUNCTION(BlueprintCallable, Category="KillerStateControl", meta=(BlueprintThreadSafe))
-	FORCEINLINE bool IsMoving() const{return Speed != 0;}
+	FORCEINLINE bool IsMoving() const{return KillerSpeed != 0;}
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="KillerStateControl", meta=(BlueprintThreadSafe))
-	bool bIsLeftMoving;
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="KillerStateControl", meta=(BlueprintThreadSafe))
-	bool bIsRightMoving;
+	virtual void InitializeWithAbilitySystem(UAbilitySystemComponent* ASC) override;
+	virtual void NativeBeginPlay() override;
 };

@@ -7,13 +7,6 @@
 
 UHuntressAttributeSet::UHuntressAttributeSet()
 {
-	InitLullabyRadiusRange(4500.0f);
-	InitAxeNumber(7.f);
-	InitRefillAxeFromCabinetRate(1.f);
-	InitChargingAxeMinRate(1.25f);
-	InitChargingAxeMaxRate(3.f);
-	InitAxeMinSpeed(2500.f);
-	InitAxeMaxSpeed(4000.f);
 }
 
 void UHuntressAttributeSet::OnRep_LullabyRadiusRange(const FGameplayAttributeData& OldValue) const
@@ -24,6 +17,13 @@ void UHuntressAttributeSet::OnRep_LullabyRadiusRange(const FGameplayAttributeDat
 void UHuntressAttributeSet::OnRep_AxeNumber(const FGameplayAttributeData& OldValue) const
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UHuntressAttributeSet, AxeNumber, OldValue);
+	OnAxeNumberChanged.Broadcast(AxeNumber.GetCurrentValue());
+}
+
+void UHuntressAttributeSet::SetCurrentAxeNum(float NewAxeNum)
+{
+	AxeNumber.SetCurrentValue(NewAxeNum);
+	OnAxeNumberChanged.Broadcast(NewAxeNum);
 }
 
 void UHuntressAttributeSet::OnRep_RefillAxeFromCabinetRate(const FGameplayAttributeData& OldValue) const

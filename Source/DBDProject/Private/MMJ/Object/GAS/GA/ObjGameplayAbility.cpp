@@ -3,7 +3,7 @@
 
 #include "MMJ/Object/GAS/GA/ObjGameplayAbility.h"
 
-#include "MMJ/Object/DBDObject.h"
+#include "MMJ/Object/Interactable/DBDObject.h"
 
 UDBDAbilitySystemComponent* UObjGameplayAbility::GetMGAbilitySystemComponentFromActorInfo() const
 {
@@ -25,6 +25,15 @@ ADBDObject* UObjGameplayAbility::GetOwnerObjectFromActorInfo()
 	if (ADBDObject* Owner = Cast<ADBDObject>(GetOwningActorFromActorInfo()))
 	{
 		return Owner;
+	}
+	return nullptr;
+}
+
+UInteractableComponent* UObjGameplayAbility::GetInteractableComponentFromActorInfo()
+{
+	if (GetOwnerObjectFromActorInfo())
+	{
+		return GetOwnerObjectFromActorInfo()->InteractableComponent;		
 	}
 	return nullptr;
 }

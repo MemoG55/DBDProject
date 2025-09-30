@@ -6,6 +6,10 @@
 #include "UObject/Interface.h"
 #include "Interactable.generated.h"
 
+
+enum class EPlayerRole:uint8;
+class UInteractableComponent;
+class UInputMappingContext;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
 class UInteractable : public UInterface
@@ -22,7 +26,7 @@ class DBDPROJECT_API IInteractable
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
-	void Interaction(AActor* Actor);
-	
+	UFUNCTION()
+	virtual UInteractableComponent* GetInteractableComponent() const = 0;
+
 };

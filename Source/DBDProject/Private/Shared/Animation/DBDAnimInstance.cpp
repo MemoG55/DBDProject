@@ -3,6 +3,7 @@
 
 #include "Shared/Animation/DBDAnimInstance.h"
 #include "AbilitySystemGlobals.h"
+#include "GameFramework/Character.h"
 #include "Misc/DataValidation.h"
 #include "Shared/GAS/DBDAbilitySystemComponent.h"
 
@@ -39,9 +40,27 @@ EDataValidationResult UDBDAnimInstance::IsDataValid(class FDataValidationContext
 void UDBDAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
+	//애니메이션에서 사용할 캐릭터, 캐릭터 무브먼트 캐시
+	CurrentOwnerCharacter = Cast<ACharacter>(TryGetPawnOwner());
+	if (CurrentOwnerCharacter)
+	{
+		CurrentOwnerMovementComponent = CurrentOwnerCharacter->GetCharacterMovement();
+	}
 }
 
 void UDBDAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
+	//캐릭터 속도 얻기
+	if (CurrentOwnerCharacter)
+	{
+		CurrentSpeed = CurrentOwnerCharacter->GetVelocity().Length();
+	}
+}
+
+void UDBDAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
+{
+	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+	
+	
 }

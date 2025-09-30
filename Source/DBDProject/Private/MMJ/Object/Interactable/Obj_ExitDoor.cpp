@@ -3,22 +3,32 @@
 
 #include "MMJ/Object/Interactable/Obj_ExitDoor.h"
 
-#include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
-#include "Shared/DBDBlueprintFunctionLibrary.h"
-#include "Shared/DBDGameplayTags.h"
+#include "MMJ/Object/Component/ICExitDoor.h"
+#include "MMJ/Object/Interactable/Obj_Exit.h"
 
-bool AObj_ExitDoor::CanInteraction(AActor* Actor)
+AObj_ExitDoor::AObj_ExitDoor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UICExitDoor>(ADBDObject::InteractableComponentName))
 {
-	if (ObjAbilitySystemComponent)
-	{
-		// 상호작용이 가능한 경우는 총 2가지
-		// 1. CurrentTask != MaxTask ( IsComplete 태그가 붙지 않은 경우)
-		// 2. 발전기가 모두 돌아갔을 경우 bCanActive == true (GameState에서 제어)
-		if ( GetCanActive() && !UDBDBlueprintFunctionLibrary::NativeActorHasTag(this, DBDGameplayTags::Object_Status_IsComplete))
-		{
-			return true;
-		}
+}
+
+void AObj_ExitDoor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CreateExitZone();
+}
+
+void AObj_ExitDoor::CreateExitZone()
+{	
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	FTransform SpawnTransform;
+	SpawnTransform.SetLocation(FVector(0, 0, 0));
 		
+	ADBDObject* Exit = GetWorld()->SpawnActor<ADBDObject>(ExitZone, SpawnParameters);
+	//ADBDObject* Exit = GetWorld()->SpawnActorDeferred<ADBDObject>(ExitZone, SpawnTransform, this);
+	if (Exit)
+	{
+		Exit->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
 	}
-	return false;
 }

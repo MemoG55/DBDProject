@@ -6,58 +6,134 @@
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "JMS/Character/SurvivorCharacter.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "KMJ/AbilitySystem/KillerAbilitySystemComponent.h"
 #include "KMJ/AbilitySystem/KillerAttributeSet.h"
+#include "KMJ/AnimInstances/KillerAnimInstance.h"
+#include "KMJ/Component/KillerInteractableComponent.h"
 #include "KMJ/DataAsset/DA_KillerInput.h"
+#include "Net/UnrealNetwork.h"
+#include "Shared/DBDDebugHelper.h"
+#include "Shared/Component/InteractorComponent.h"
 #include "Shared/GameFramework/DBDPlayerState.h"
+#include "Slate/SGameLayerManager.h"
 
 AKillerCharacter::AKillerCharacter()
 {
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetRootComponent());
+	CameraBoom->SetupAttachment(GetMesh());
 	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bInheritPitch = true;
+	CameraBoom->bInheritRoll = true;
+	CameraBoom->bInheritYaw = false;
 
 	FollowCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCam"));
 	FollowCam->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-
-	//HeadMesh->SetupAttachment(GetRootComponent());
 	
 	//메시 -90도 돌려놓아 정면으로 조정
 	GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 
-	//KillerAbilitySystemComponent = CreateDefaultSubobject<UKillerAbilitySystemComponent>(TEXT("KillerAbilitySystemComponent"));
-	//KillerAttributeSet = CreateDefaultSubobject<UKillerAttributeSet>(TEXT("KillerAttributeSet"));
+	KillerAbilitySystemComponent = CreateDefaultSubobject<UKillerAbilitySystemComponent>(TEXT("KillerAbilitySystemComponent"));
+	KillerAttributeSet = CreateDefaultSubobject<UKillerAttributeSet>(TEXT("KillerAttributeSet"));
 
-	/*if (KillerAttributeSet)
-	{
-		AKillerCharacter::InitKillerAttribute();
-	}*/
+	// InteractorComponent
+	InteractorComponent = CreateDefaultSubobject<UInteractorComponent>(TEXT("InteractorComponent"));
+	InteractorComponent->SetupAttachment(GetRootComponent());
+
+	// InteractableComponent
+	KillerInteractableComponent = CreateDefaultSubobject<UKillerInteractableComponent>(
+		TEXT("KillerInteractableComponent"));
+	KillerInteractableComponent->SetupAttachment(GetRootComponent());
 }
 
-/*UAbilitySystemComponent* AKillerCharacter::GetAbilitySystemComponent() const
+UAbilitySystemComponent* AKillerCharacter::GetAbilitySystemComponent() const
 {
-	//ADBDPlayerState* PlayerState = Cast<ADBDPlayerState>(GetPlayerState());
-	return PlayerState->GetAbilitySystemComponent();
-}*/
+	return KillerAbilitySystemComponent;
+}
+
+UInteractableComponent* AKillerCharacter::GetInteractableComponent() const
+{
+	return KillerInteractableComponent;
+}
+
+UInteractorComponent* AKillerCharacter::GetInteractorComponent() const
+{
+	return InteractorComponent;
+}
+
+EPlayerRole AKillerCharacter::GetInteractorRole() const
+{
+	return EPlayerRole::Killer;
+}
 
 void AKillerCharacter::ServerSideInit()
 {
-	//KillerAbilitySystemComponent->InitAbilityActorInfo(this, this);
-	//KillerAbilitySystemComponent->ApplyInitializeEffects();
-	//KillerAbilitySystemComponent->OperatingInitializedAbilities();
+	KillerAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	KillerAbilitySystemComponent->ApplyInitializeEffects();
+	KillerAbilitySystemComponent->OperatingInitializedAbilities();
+	ADBDPlayerState* PS = Cast<ADBDPlayerState>(GetPlayerState());
+	if (PS)
+	{
+		AuthInitPerks();
+	}
+	if (!IsRunningDedicatedServer())
+	{
+		UKillerAnimInstance* KillerAnimInstance = Cast<UKillerAnimInstance>(GetMesh()->GetAnimInstance());
+		if (KillerAnimInstance)
+		{
+			//UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ServerSideInit: KillerAnimInstance Is %s"), *KillerAnimInstance->GetName());
+			KillerAnimInstance->InitializeWithAbilitySystem(KillerAbilitySystemComponent);
+		}
+		else
+		{
+		    //UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ServerSideInit: KillerAnimInstance Is Null"));
+		}
+	}
 }
 
 void AKillerCharacter::ClientSideInit()
 {
-	//KillerAbilitySystemComponent->ApplyInitializeEffects();
+	KillerAbilitySystemComponent->InitAbilityActorInfo(this, this);
+	UKillerAnimInstance* KillerAnimInstance = Cast<UKillerAnimInstance>(GetMesh()->GetAnimInstance());
+	if (KillerAnimInstance)
+	{
+		//UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ClientSideInit: KillerAnimInstance Is %s"), *KillerAnimInstance->GetName());
+		KillerAnimInstance->InitializeWithAbilitySystem(KillerAbilitySystemComponent);
+	}
+	else
+	{
+		//UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ClientSideInit: KillerAnimInstance Is Null"));
+	}
 }
 
 void AKillerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	if (GetController())
+	{
+		if (FPVAnimClass)
+		{
+			GetMesh()->SetAnimInstanceClass(FPVAnimClass);
+			//Debug::Print(FString::Printf(TEXT("KMJ:: %s: FPV: %s"), *GetController()->GetCharacter()->GetName() ,*FPVAnimClass->GetName()), 3);
+			//UE_LOG(LogTemp, Warning, TEXT("FPV: %s"), *FPVAnimClass->GetName());
+		}
+		//else UE_LOG(LogTemp, Warning, TEXT("FPVAnimClass is null!"));
+	}
+	else
+	{
+		if (TPVAnimClass)
+		{
+			GetMesh()->SetAnimInstanceClass(TPVAnimClass);
+			//Debug::Print(FString::Printf(TEXT("KMJ:: %s: TPV: %s"), *GetController()->GetCharacter()->GetName(),*TPVAnimClass->GetName()), 3);
+			//UE_LOG(LogTemp, Warning, TEXT("TPV: %s"), *TPVAnimClass->GetName());
+		}
+		//else UE_LOG(LogTemp, Warning, TEXT("TPVAnimClass is null!"));
+	}
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }
 
 void AKillerCharacter::Tick(float DeltaSeconds)
@@ -101,10 +177,25 @@ void AKillerCharacter::Tick(float DeltaSeconds)
 void AKillerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-	if (NewController && !NewController->IsPlayerController())
+	if (NewController)
 	{
 		ServerSideInit();
 	}
+}
+
+void AKillerCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	//if (IsLocallyControlledByPlayer())
+	//{
+		ClientSideInit();
+	//}
+}
+
+bool AKillerCharacter::IsLocallyControlledByPlayer() const
+{
+	// 로컬제어 & 플레이어 컨트롤러인지 판단
+	return GetController() && GetController()->IsLocalPlayerController();
 }
 
 void AKillerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -143,9 +234,48 @@ void AKillerCharacter::PawnClientRestart()
 	}
 }
 
-void AKillerCharacter::InitKillerAttribute()
+void AKillerCharacter::OnRep_CarriedSurvivorCharacter()
 {
-	
+}
+
+void AKillerCharacter::Server_SetCarriedSurvivorCharacter_Implementation(ASurvivorCharacter* NewSurvivorCharacter)
+{
+	// 유효한 생존자 캐릭터인지 확인
+	if (IsValid(NewSurvivorCharacter))
+	{
+		CarriedSurvivorCharacter = NewSurvivorCharacter;
+
+		// 레플리케이션을 트리거하여 클라이언트에 동기화
+		OnRep_CarriedSurvivorCharacter();  // 클라이언트 측에서 처리할 내용도 추가 가능
+
+		// 추가적인 서버측 로직 처리 가능 (예: 능력 시스템 등)
+		//UE_LOG(LogTemp, Log, TEXT("Carried Survivor Character set to: %s"), *NewSurvivorCharacter->GetName());
+	}
+	else
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("Invalid Survivor Character passed to server!"));
+	}
+}
+
+bool AKillerCharacter::Server_SetCarriedSurvivorCharacter_Validate(ASurvivorCharacter* NewSurvivorCharacter)
+{
+	// 여기서 적절한 검증 로직을 추가합니다. 예를 들어:
+	if (IsValid(NewSurvivorCharacter))
+	{
+		// 생존자가 유효하고 살아있는지 확인
+		return true;
+	}
+	else
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("Invalid Survivor Character passed to server during validation!"));
+		return false; // 클라이언트가 보낸 데이터가 유효하지 않으면 false 반환
+	}
+}
+
+void AKillerCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AKillerCharacter, CarriedSurvivorCharacter);
 }
 
 void AKillerCharacter::AbilityInput(const FInputActionValue& InputActionValue, EKillerAbilityInputID InputID)
