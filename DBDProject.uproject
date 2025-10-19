@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "{BDC35230-4EC1-065E-E3DE-4997CBD8F00B}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -11,7 +11,10 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"AdvancedSessions",
-				"GameplayAbilities"
+				"GameplayAbilities",
+				"CoreUObject",
+				"CommonUI",
+				"UMG"
 			]
 		}
 	],
@@ -49,6 +52,18 @@
 		},
 		{
 			"Name": "CommonUI",
+			"Enabled": true
+		},
+		{
+			"Name": "Fab",
+			"Enabled": false
+		},
+		{
+			"Name": "MotionWarping",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationWarping",
 			"Enabled": true
 		}
 	]
