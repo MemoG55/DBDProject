@@ -9,9 +9,14 @@
 #include "Shared/DBDDebugHelper.h"
 
 
-void UPerk_BotanyKnowledge::OnInitialized()
+UPerk_BotanyKnowledge::UPerk_BotanyKnowledge()
 {
-	Super::OnInitialized();
+	PerkID = FName(TEXT("BotanyKnowledge"));
+}
+
+void UPerk_BotanyKnowledge::OnServerSideInitialized()
+{
+	Super::OnServerSideInitialized();
 	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(GetOuterAsDBDCharacter());
 	if (!ASI)
 	{

@@ -29,8 +29,11 @@ private:
 	class UCharacterMovementComponent* KillerOwnerMovementComponent;
 
 	float KillerSpeed;
-	
+
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float KillerAim_Horizontal;
+	
 	UFUNCTION(BlueprintCallable, Category="KillerStateControl", meta=(BlueprintThreadSafe))
 	FORCEINLINE float GetSpeed() const{return KillerSpeed;}
 

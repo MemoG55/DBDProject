@@ -2,9 +2,11 @@
 
 #include "KMJ/Character/KillerCharacter.h"
 
+#include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
+#include "Engine/SkeletalMeshSocket.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
@@ -16,38 +18,42 @@
 #include "KMJ/AnimInstances/KillerAnimInstance.h"
 #include "KMJ/Component/KillerInteractableComponent.h"
 #include "KMJ/DataAsset/DA_KillerInput.h"
+#include "MMJ/Object/Interactable/Obj_Generator.h"
+#include "MMJ/Object/Interactable/Obj_Hook.h"
 #include "Net/UnrealNetwork.h"
+#include "Shared/DBDBlueprintFunctionLibrary.h"
 #include "Shared/DBDDebugHelper.h"
 #include "Shared/Component/InteractorComponent.h"
+#include "Shared/Controller/DBDPlayerController.h"
 #include "Shared/GameFramework/DBDPlayerState.h"
+#include "Shared/Subsystem/DBDAuraSubsystem.h"
+#include "Shared/Subsystem/DBDCharacterObserver.h"
+#include "Shared/Subsystem/DBDObjectObserver.h"
 #include "Slate/SGameLayerManager.h"
 
 AKillerCharacter::AKillerCharacter()
 {
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetMesh());
-	CameraBoom->bUsePawnControlRotation = true;
-	CameraBoom->bInheritPitch = true;
-	CameraBoom->bInheritRoll = true;
-	CameraBoom->bInheritYaw = false;
-
+	CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraArm"));
+	//CameraArm->SetupAttachment(GetRootComponent());
+	CameraArm->SetupAttachment(GetMesh(), TEXT("joint_Head_01"));
 	FollowCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCam"));
-	FollowCam->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	//FollowCam->SetupAttachment(GetRootComponent());
+	FollowCam->SetupAttachment(CameraArm);
+	//FollowCam->SetupAttachment(GetMesh(), TEXT("joint_Head_01"));
+	FollowCam->bUsePawnControlRotation = true;
 	
-	//메시 -90도 돌려놓아 정면으로 조정
-	GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	//메시 -90�려�아 �면�로 조정
+	//BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BodyMesh"));
+	GetMesh()->SetupAttachment(GetRootComponent());
 
 	KillerAbilitySystemComponent = CreateDefaultSubobject<UKillerAbilitySystemComponent>(TEXT("KillerAbilitySystemComponent"));
 	KillerAttributeSet = CreateDefaultSubobject<UKillerAttributeSet>(TEXT("KillerAttributeSet"));
-
-	// InteractorComponent
-	InteractorComponent = CreateDefaultSubobject<UInteractorComponent>(TEXT("InteractorComponent"));
-	InteractorComponent->SetupAttachment(GetRootComponent());
 
 	// InteractableComponent
 	KillerInteractableComponent = CreateDefaultSubobject<UKillerInteractableComponent>(
 		TEXT("KillerInteractableComponent"));
 	KillerInteractableComponent->SetupAttachment(GetRootComponent());
+	bReplicates = true;
 }
 
 UAbilitySystemComponent* AKillerCharacter::GetAbilitySystemComponent() const
@@ -60,10 +66,6 @@ UInteractableComponent* AKillerCharacter::GetInteractableComponent() const
 	return KillerInteractableComponent;
 }
 
-UInteractorComponent* AKillerCharacter::GetInteractorComponent() const
-{
-	return InteractorComponent;
-}
 
 EPlayerRole AKillerCharacter::GetInteractorRole() const
 {
@@ -93,6 +95,16 @@ void AKillerCharacter::ServerSideInit()
 		    //UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ServerSideInit: KillerAnimInstance Is Null"));
 		}
 	}
+	// JMS: ��버� �버/�라�언각각 관리해줘야 �서 �기추�습�다.
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
+	{
+		//Debug::Print(TEXT("JMS11: CharacterObserver is NULL!"), 11);
+	}
+	else
+	{
+		CharacterObserver->RegisterKiller(this);
+	}
 }
 
 void AKillerCharacter::ClientSideInit()
@@ -107,6 +119,17 @@ void AKillerCharacter::ClientSideInit()
 	else
 	{
 		//UE_LOG(LogTemp, Error, TEXT("KillerCharacter::ClientSideInit: KillerAnimInstance Is Null"));
+	}
+	// JMS: ��버� �버/�라�언각각 관리해줘야 �서 �기추�습�다.
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
+	{
+		//Debug::Print(TEXT("JMS11: CharacterObserver is NULL!"), 11);
+	}
+	else
+	{
+		CharacterObserver->RegisterKiller(this);
+		CharacterObserver->PrintAllCharacter();
 	}
 }
 
@@ -134,6 +157,31 @@ void AKillerCharacter::BeginPlay()
 		//else UE_LOG(LogTemp, Warning, TEXT("TPVAnimClass is null!"));
 	}
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
+
+	ADBDPlayerController* PC = Cast<ADBDPlayerController>(GetController());
+	if (PC)
+	{
+		DisableInput(PC);
+		if (ADBDPlayerState* PS = PC->GetPlayerState<ADBDPlayerState>())
+		{
+			if (PS->GetPlayerEndState() != EPlayerEndState::None)
+			{
+				DisableInput(PC);
+				UE_LOG(LogTemp, Warning, TEXT("MMJLog : EndLevel"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("MMJLog : InGameLevel"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MMJLog : Not Valid PS"));
+		}
+	}
+	//YHG �크 �우코드
+	//GetAbilitySystemComponent()->RegisterGameplayTagEvent(DBDGameplayTags::Killer_Common_Status_Carrying, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::OnAura_Hook);
 }
 
 void AKillerCharacter::Tick(float DeltaSeconds)
@@ -148,13 +196,12 @@ void AKillerCharacter::Tick(float DeltaSeconds)
 		GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
 	}
 
-	//상태 정의 코드
+	//�태 �의 코드
 	bIsGrounded = GetCharacterMovement()->IsMovingOnGround();
 	bIsFalling = GetCharacterMovement()->IsFalling();
-	//아무런 움직임이 없고, 지상일 때
-	bIsIdle = GetCharacterMovement()->Velocity.IsZero() && bIsGrounded;
+	//�무�직임�고, 지�일 	bIsIdle = GetCharacterMovement()->Velocity.IsZero() && bIsGrounded;
 
-	//카메라 기준 오른쪽으로 움직이는지, 왼쪽으로 움직이는지
+	//카메기� �른쪽으례직이��, �쪽�로 �직이��
 	FVector VelocityDirection = GetCharacterMovement()->Velocity.GetSafeNormal();
 	bIsLeftMoving = UKismetMathLibrary::Cross_VectorVector(VelocityDirection, FollowCam->GetForwardVector()).Z > 0;
 	bIsRightMoving = UKismetMathLibrary::Cross_VectorVector(VelocityDirection, FollowCam->GetForwardVector()).Z < 0;
@@ -181,6 +228,7 @@ void AKillerCharacter::PossessedBy(AController* NewController)
 	{
 		ServerSideInit();
 	}
+
 }
 
 void AKillerCharacter::OnRep_PlayerState()
@@ -190,11 +238,22 @@ void AKillerCharacter::OnRep_PlayerState()
 	//{
 		ClientSideInit();
 	//}
+	// JMS: 발전긤라륄해 추�습�다.
+	if (IsLocallyControlledByPlayer())
+	{
+		UDBDObjectObserver* ObjectObserver = GetWorld()->GetSubsystem<UDBDObjectObserver>();
+		TArray<AObj_Generator*> Generators = ObjectObserver->GetGenerators();
+		for (AObj_Generator* Generator : Generators)
+		{
+			//Generator->SetCustomDepth(1);
+			//Generator->EnableAura();
+		}
+	}
 }
 
 bool AKillerCharacter::IsLocallyControlledByPlayer() const
 {
-	// 로컬제어 & 플레이어 컨트롤러인지 판단
+	// 로컬�어 & �레�어 컨트롤러�� �단
 	return GetController() && GetController()->IsLocalPlayerController();
 }
 
@@ -234,21 +293,39 @@ void AKillerCharacter::PawnClientRestart()
 	}
 }
 
+void AKillerCharacter::InitItemHUD()
+{
+	// JMS: UI수정: WidgetComponent에서 스폰 시 초기화
+	// OnItemUIInitialize.Broadcast(this, GetInteractorRole());
+}
+
+/*void AKillerCharacter::AddControllerPitchInput(float Val)
+{
+	if (Controller && Val != 0.0f)
+	{
+		FRotator NewRotation = Controller->GetControlRotation();
+		//float NewPitch; //= FMath::Clamp(NewRotation.Pitch + Val, -120.0f, 120.0f); // Pitch �한
+		if (NewRotation.Pitch + Val > 120.0f) NewRotation.Pitch = 120.0f;
+		else if (NewRotation.Pitch + Val < -120.0f) NewRotation.Pitch = -120.0f;
+		else NewRotation.Pitch =  NewRotation.Pitch + Val;
+		//NewRotation.Pitch = NewPitch;
+		Controller->SetControlRotation(NewRotation);
+	}
+}*/
+
 void AKillerCharacter::OnRep_CarriedSurvivorCharacter()
 {
 }
 
 void AKillerCharacter::Server_SetCarriedSurvivorCharacter_Implementation(ASurvivorCharacter* NewSurvivorCharacter)
 {
-	// 유효한 생존자 캐릭터인지 확인
+	// �효�존캐릭�인지 �인
 	if (IsValid(NewSurvivorCharacter))
 	{
 		CarriedSurvivorCharacter = NewSurvivorCharacter;
 
-		// 레플리케이션을 트리거하여 클라이언트에 동기화
-		OnRep_CarriedSurvivorCharacter();  // 클라이언트 측에서 처리할 내용도 추가 가능
-
-		// 추가적인 서버측 로직 처리 가능 (예: 능력 시스템 등)
+		// �플리�션�리거하�라�언�에 �기		OnRep_CarriedSurvivorCharacter();  // �라�언측에처리�용추� 가
+		// 추�인 �버�로직 처리 가( �력 �스
 		//UE_LOG(LogTemp, Log, TEXT("Carried Survivor Character set to: %s"), *NewSurvivorCharacter->GetName());
 	}
 	else
@@ -259,16 +336,16 @@ void AKillerCharacter::Server_SetCarriedSurvivorCharacter_Implementation(ASurviv
 
 bool AKillerCharacter::Server_SetCarriedSurvivorCharacter_Validate(ASurvivorCharacter* NewSurvivorCharacter)
 {
-	// 여기서 적절한 검증 로직을 추가합니다. 예를 들어:
+	// �기�절검�로직추�니 �� �어:
 	if (IsValid(NewSurvivorCharacter))
 	{
-		// 생존자가 유효하고 살아있는지 확인
+		// �존�� �효�고 �아�는지 �인
 		return true;
 	}
 	else
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("Invalid Survivor Character passed to server during validation!"));
-		return false; // 클라이언트가 보낸 데이터가 유효하지 않으면 false 반환
+		return false; // �라�언�� 보낸 �이�� �효�� �으�false 반환
 	}
 }
 
@@ -276,6 +353,35 @@ void AKillerCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AKillerCharacter, CarriedSurvivorCharacter);
+	//DOREPLIFETIME(AKillerCharacter, KillerAim_Horizontal);
+	DOREPLIFETIME_CONDITION(AKillerCharacter, KillerAim_Horizontal, COND_SkipOwner)
+	DOREPLIFETIME(AKillerCharacter, IsCarrying);
+}
+
+
+void AKillerCharacter::OnRep_KillerAimHorizontal()
+{
+}
+
+
+void AKillerCharacter::Server_SetKillerAimHorizontal_Implementation(float NewPitch)
+{
+	KillerAim_Horizontal = NewPitch;
+}
+
+bool AKillerCharacter::Server_SetKillerAimHorizontal_Validate(float NewPitch)
+{
+	return true;
+}
+
+void AKillerCharacter::Server_SetKiller_IsCarrying_Implementation(bool bIsCarrying)
+{
+	IsCarrying = bIsCarrying;
+}
+
+bool AKillerCharacter::Server_SetKiller_IsCarrying_Validate(bool bIsCarrying)
+{
+	return true;
 }
 
 void AKillerCharacter::AbilityInput(const FInputActionValue& InputActionValue, EKillerAbilityInputID InputID)
@@ -297,6 +403,8 @@ void AKillerCharacter::LookAction(const FInputActionValue& InputActionValue)
 
 	AddControllerPitchInput(-InputValue.Y);
 	AddControllerYawInput(InputValue.X);
+	float NewPitch = GetControlRotation().Pitch;
+	Server_SetKillerAimHorizontal(NewPitch);
 }
 
 void AKillerCharacter::MoveAction(const FInputActionValue& InputActionValue)
@@ -344,4 +452,55 @@ bool AKillerCharacter::GetIsRightMoving() const
 bool AKillerCharacter::GetIsLeftMoving() const
 {
 	return bIsRightMoving;
+}
+
+//�크 �우�성비활�화
+void AKillerCharacter::OnAura_Hook(const FGameplayTag Tag, const int32 NewCount) const
+{
+	UDBDObjectObserver* ObjectObserver = GetWorld()->GetSubsystem<UDBDObjectObserver>();
+	if (!ObjectObserver)
+	{
+		return;
+	}
+
+	ADBDPlayerState* DBDPlayerState = Cast<ADBDPlayerState>(GetPlayerState());
+	if (!DBDPlayerState)
+	{
+		return;
+	}
+
+	UDBDAuraSubsystem* AuraSubsystem = GetWorld()->GetSubsystem<UDBDAuraSubsystem>();
+	if (!AuraSubsystem)
+	{
+		return;
+	}
+	
+	if (NewCount > 0)
+	{
+		for (AObj_Hook* Hook : ObjectObserver->GetHooks())
+		{
+			//AuraSubsystem->SetAuraState(Hook, GetPlayerState(), 1);
+		}
+		// if (IsLocallyControlled())
+		// {
+		// 	for (AObj_Hook* Hook : ObjectObserver->GetHooks())
+		// 	{
+		// 		Hook->EnableAura();	
+		// 	}
+		// }
+	}
+	else
+	{
+		for (AObj_Hook* Hook : ObjectObserver->GetHooks())
+		{
+			//AuraSubsystem->UnSetAuraState(Hook, GetPlayerState());
+		}
+		// if (IsLocallyControlled())
+		// {
+		// 	for (AObj_Hook* Hook : ObjectObserver->GetHooks())
+		// 	{
+		// 		Hook->DisableAura();	
+		// 	}
+		// }
+	}
 }

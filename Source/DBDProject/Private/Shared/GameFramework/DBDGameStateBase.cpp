@@ -3,9 +3,12 @@
 
 #include "Shared/GameFramework/DBDGameStateBase.h"
 
+#include "JMS/Character/SurvivorCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "KMJ/Character/KillerCharacter.h"
 #include "MMJ/Object/Interactable/DBDObject.h"
 #include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
+#include "MMJ/Object/Interactable/Obj_Exit.h"
 #include "MMJ/Object/Interactable/Obj_ExitDoor.h"
 #include "MMJ/Object/Interactable/Obj_Generator.h"
 #include "Net/UnrealNetwork.h"
@@ -17,7 +20,12 @@
 #include "Shared/Component/InteractableComponent.h"
 #include "Shared/Controller/DBDPlayerController.h"
 #include "Shared/GameFramework/DBDPlayerState.h"
+#include "Shared/Subsystem/DBDCharacterObserver.h"
+#include "Shared/Subsystem/DBDEndGameSubsystem.h"
+#include "Shared/Subsystem/DBDObjectObserver.h"
 #include "Shared/UI/DBDHUD.h"
+#include "Shared/UI/DBDWidgetComponent.h"
+#include "Shared/UI/EscapeTimerUI.h"
 
 ADBDGameStateBase::ADBDGameStateBase()
 {
@@ -28,63 +36,85 @@ void ADBDGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION_NOTIFY(ADBDGameStateBase, EscapeTimer, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ADBDGameStateBase, RequiredGeneratorRepairCount, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ADBDGameStateBase, RemainingEscapeTime, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ADBDGameStateBase, bIsGameEnded, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ADBDGameStateBase, bIsSlowEscape, COND_None, REPNOTIFY_Always);
 }
 
-
-float ADBDGameStateBase::GetMaxEscapeTime()
+void ADBDGameStateBase::SetRemainingEscapeTime(float NewTime)
 {
-	return MaxEscapeTime;
-}
-
-void ADBDGameStateBase::SetEscapeTimer()
-{
-	if (!EscapeTimer.IsValid() && HasAuthority())
+	if (HasAuthority())
 	{
-		GetWorld()->GetTimerManager().SetTimer(EscapeTimer,
-			this,
-			&ThisClass::TickEscapeTimer,
-		EscapeTimerInterval,
-		true);
-
+		RemainingEscapeTime = NewTime;
+		OnRep_RemainingEscapeTime(NewTime);
 	}
 }
 
-void ADBDGameStateBase::TickEscapeTimer()
-{
-	if (RemainingEscapeTime <= 0)
-	{
-		GetWorld()->GetTimerManager().ClearTimer(EscapeTimer);
 
-		if (HasAuthority())
+void ADBDGameStateBase::OnRep_RemainingEscapeTime(float NewTime)
+{
+	if (ADBDPlayerController* PC = GetWorld()->GetFirstPlayerController<ADBDPlayerController>())
+	{
+		if (ADBDCharacter* Character = Cast<ADBDCharacter>(PC->GetCharacter()))
 		{
-			OnEscapeTimerEnd.Broadcast();
+			if (UDBDWidgetComponent* CharacterWidgetComponent = Character->GetWidgetComponent())
+			{
+				if (CharacterWidgetComponent->PlayerHUD->GetEndGameHUD())
+				{
+					if (!CharacterWidgetComponent->PlayerHUD->GetEndGameHUD()->IsVisible())
+					{
+						CharacterWidgetComponent->PlayerHUD->SetEndGameHUD();
+					}
+					CharacterWidgetComponent->PlayerHUD->UpdateEndGameHUD(NewTime);
+				}
+			}
 		}
-		
-		return;
 	}
-	RemainingEscapeTime -= EscapeTimerInterval;
 }
 
-void ADBDGameStateBase::OnRep_RemainingEscapeTime()
+void ADBDGameStateBase::SetIsSlowEscape(bool bIsSlow)
 {
-	OnEscapeTimer.Broadcast(RemainingEscapeTime);
-}
-
-void ADBDGameStateBase::OnRep_EscapeTimer()
-{
-	if (EscapeTimer.IsValid())
+	if (HasAuthority())
 	{
-		OnEscapeTimerBegin.Broadcast();
+		if (bIsSlowEscape != bIsSlow)
+		{
+			bIsSlowEscape = bIsSlow;
+			OnRep_IsSlowEscape();
+			if (UDBDEndGameSubsystem* EndGameSubsystem = GetWorld()->GetSubsystem<UDBDEndGameSubsystem>())
+			{
+				EndGameSubsystem->SetTimerSlow(bIsSlowEscape);
+			}
+		}
 	}
 }
 
-void ADBDGameStateBase::SetGameEnd(bool Result)
+void ADBDGameStateBase::OnRep_IsSlowEscape()
 {
-	GetWorld()->GetTimerManager().ClearTimer(EscapeTimer);
-	bIsGameEnded = Result;
+	if (ADBDPlayerController* PC = GetWorld()->GetFirstPlayerController<ADBDPlayerController>())
+	{
+		if (ADBDCharacter* Character = Cast<ADBDCharacter>(PC->GetCharacter()))
+		{
+			if (UDBDWidgetComponent* CharacterWidgetComponent = Character->GetWidgetComponent())
+			{
+				if (CharacterWidgetComponent->PlayerHUD->GetEndGameHUD())
+				{
+					CharacterWidgetComponent->PlayerHUD->GetEndGameHUD()->ChangeProgressBar(bIsSlowEscape);
+				}
+			}
+		}
+	}
+}
+
+
+void ADBDGameStateBase::SetGameEnd()
+{
+	if (HasAuthority())
+	{
+		bIsGameEnded = true;
+
+		OnRep_bIsGameEnded();
+	}
 }
 
 void ADBDGameStateBase::OnRep_bIsGameEnded()
@@ -96,8 +126,17 @@ void ADBDGameStateBase::OnRep_bIsGameEnded()
 		{
 			if (PC->IsLocalPlayerController())
 			{
-				PC->CustomCreateWidget();
+				DisableInput(PC);
 			}
+		}
+	}
+
+	for (ASurvivorCharacter* Character : Survivors)
+	{
+		if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
+		{
+			//ASC->AddLooseGameplayTag(DBDGameplayTags::Shared_GameState_End);
+			ASC->AddReplicatedLooseGameplayTag(DBDGameplayTags::Shared_GameState_End);
 		}
 	}
 }
@@ -119,86 +158,54 @@ void ADBDGameStateBase::BeginPlay()
 
 	if (HasAuthority())
 	{
-		// 발전기
+		// 옵저버 설정
 		{
-			TArray<AActor*> FoundActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AObj_Generator::StaticClass(), FoundActors);
-			for (AActor* Actor : FoundActors)
+			if (UDBDCharacterObserver* Observer = GetWorld()->GetSubsystem<UDBDCharacterObserver>())
 			{
-				if (AObj_Generator* Generator = Cast<AObj_Generator>(Actor))
-				{
-					Generators.Add(Generator);
-
-					if (Generator->GetInteractableComponent())
-					{
-						Generator->GetInteractableComponent()->OnComplete.AddDynamic(this, &ThisClass::ADBDGameStateBase::CheckGeneratorState);
-					}
-				}
+				CharacterObserver = Observer;
 			}
-		}
-		
-		// 탈출구
-		{
-			TArray<AActor*> FoundActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AObj_ExitDoor::StaticClass(), FoundActors);
-			for (AActor* Actor : FoundActors)
+			// 오브젝트
+			if (UDBDObjectObserver* Observer = GetWorld()->GetSubsystem<UDBDObjectObserver>())
 			{
-				if (AObj_ExitDoor* ExitDoor = Cast<AObj_ExitDoor>(Actor))
-				{
-					ExitDoor->GetInteractableComponent()->OnComplete.AddDynamic(this, &ThisClass::SetEscapeTimer);
-					ExitDoors.Add(ExitDoor);
-				}
-			}
-		}
-	}
-}
+				ObjectObserver = Observer;
 
-int32 ADBDGameStateBase::GetRequiredGeneratorCount()
-{
-	// 플레이어 생존자 수 구하기 + 1 = 발전기 요구 수량
-	return GetSurvivorCount() + 1; 
-}
+				// 발전기
+				//Generators = ObjectObserver->GetGenerators();
+				// for (AObj_Generator* Generator : Generators)
+				// {
+				// 	if (Generator->GetInteractableComponent())
+				// 	{
+				// 		Generator->GetInteractableComponent()->OnComplete.AddDynamic(this, &ThisClass::ADBDGameStateBase::CheckGeneratorState);
+				// 	}
+				// }
 
-void ADBDGameStateBase::CheckGeneratorState()
-{
-	if (!HasAuthority()) return;
-	
-	int32 RepairCount = 0;
-	for (ADBDObject* Generator : Generators)
-	{
-		if (UDBDBlueprintFunctionLibrary::NativeActorHasTag(Generator, DBDGameplayTags::Object_Status_IsComplete))
-		{
-			RepairCount++;
-		}
-	}
-
-	RepairGeneratorCount = RepairCount;
-	
-	if (RepairCount >= GetRequiredGeneratorCount())
-	{
-		// 발전기들이 수리요구수량만큼 수리되었을 때 실행될 알림 전송 함수 필요
-		Debug::Print(TEXT("ExitDoor IS Accessible"), 12);
-	}
-}
-
-int32 ADBDGameStateBase::GetSurvivorCount()
-{
-	int32 SurvivorCount = 0;
-	EPlayerRole SurvivorRole = EPlayerRole::Survivor;
-	for (APlayerState* PS : PlayerArray)
-	{
-		if (ADBDPlayerState* DBDPS = Cast<ADBDPlayerState>(PS))
-		{
-			if (DBDPS->GetPlayerRole() == SurvivorRole)
-			{
-				SurvivorCount++;
+				// 탈출구
+				//ExitDoors = ObjectObserver->GetExitDoors();
+				// for (AObj_ExitDoor* ExitDoor : ExitDoors)
+				// {
+				// 	if (ExitDoor->GetInteractableComponent())
+				// 	{
+				// 		ExitDoor->GetInteractableComponent()->OnComplete.AddDynamic(this, &ThisClass::SetEscapeTimer);
+				// 		ExitDoor->GetInteractableComponent()->OnDestroy.AddDynamic(this, &ThisClass::SetGameEnd);
+				// 	}
+				// }
 			}
 		}
 	}
-	return SurvivorCount;
 }
 
-int32 ADBDGameStateBase::GetRepairGeneratorCount()
+void ADBDGameStateBase::OnRep_RequiredGeneratorRepairCount()
 {
-	return RepairGeneratorCount;
+	if (ADBDPlayerController* PC = GetWorld()->GetFirstPlayerController<ADBDPlayerController>())
+	{
+		if (ADBDCharacter* Character = Cast<ADBDCharacter>(PC->GetCharacter()))
+		{
+			// JMS: UI수정: 위젯 컴포넌트를 통해 업데이트
+			Character->GetWidgetComponent()->OnUpdateGeneratorCount.Broadcast(RequiredGeneratorRepairCount);
+			// if (IsValid(Character->PlayerHUD))
+			// {
+			// 	Character->PlayerHUD->SetLeftGeneratorIcon(RequiredGeneratorRepairCount);
+			// }
+		}
+	}
 }

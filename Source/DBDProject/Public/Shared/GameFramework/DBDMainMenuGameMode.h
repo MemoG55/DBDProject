@@ -14,7 +14,6 @@ class DBDPROJECT_API ADBDMainMenuGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 	
-	
-	
-	
+public:
+	ADBDMainMenuGameMode();
 };

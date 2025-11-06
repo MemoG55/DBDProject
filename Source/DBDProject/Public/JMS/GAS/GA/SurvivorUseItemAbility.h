@@ -6,6 +6,8 @@
 #include "JMS/GAS/SurvivorGameplayAbility.h"
 #include "SurvivorUseItemAbility.generated.h"
 
+class UItemAbilitySystemComponent;
+class ASurvivorItem;
 /**
  * 
  */
@@ -16,6 +18,10 @@ class DBDPROJECT_API USurvivorUseItemAbility : public USurvivorGameplayAbility
 	
 public:
 	USurvivorUseItemAbility();
-	
+protected:
+	UItemAbilitySystemComponent* GetItemAbilitySystemComponentFromActorInfo() const;
+protected:
+	UFUNCTION(BlueprintPure, Category="GA")
+	UInteractorComponent* GetInteractorComponentFromActorInfo() const;	
 	
 };

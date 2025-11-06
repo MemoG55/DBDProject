@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PoolableActor.h"
+#include "ProjectileAxe.h"
 #include "GameFramework/Actor.h"
 #include "GenericPool.generated.h"
 
@@ -19,40 +20,52 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-private:
-	UPROPERTY(EditAnywhere, Category = "Pool")
-	TArray<APoolableActor*> ObjectPool;
-
 public:
+	UPROPERTY(EditAnywhere, Category = "Pool")
+	TArray<AProjectileAxe*> ObjectPool;
+	
+	int32 idx = 0;
+
 	template <typename T>
-	void InitPool(const int32 Size)
+	void InitPool(UClass* ProjectileClass, int32 Size)
 	{
-		UClass* ObjectClass = T::StaticClass();
-		for (int32 i = 0; i < Size; ++i) {
+		if (!ProjectileClass) return;
+
+		for (int32 i = 0; i < Size; ++i) 
+		{
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			APoolableActor* NewActor = GetWorld()->SpawnActor<APoolableActor>(ObjectClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+			// BP 클래스로 스폰
+			AProjectileAxe* NewActor = GetWorld()->SpawnActor<AProjectileAxe>(ProjectileClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 			NewActor->Deactivate();
 			ObjectPool.Add(NewActor);
 		}
 	}
 
+
 	template <typename T>
-	T* GetObject() {
-		UClass* ObjectClass = T::StaticClass();
-		for (APoolableActor* Object : ObjectPool)
+	T* GetObject(UClass* ObjectClass)
+	{
+		if (!ObjectClass || ObjectPool.Num() == 0) return nullptr;
+
+		for (AProjectileAxe* Object : ObjectPool)
 		{
-			if (!Object->GetIsActive())
+			if (Object && !Cast<T>(Object)->GetIsActive() && Object->IsA(ObjectClass))
 			{
-				Object->Activate();
 				return Cast<T>(Object);
 			}
 		}
 
-		// 풀에 사용 가능한 오브젝트가 없으면 새로 생성
-		T* NewObject = GetWorld()->SpawnActor<T>(ObjectClass);
-		ObjectPool.Add(NewObject);
-		return NewObject;
+		// 순환 방식으로 반환
+		AProjectileAxe* NewObject = ObjectPool[idx];
+		if (NewObject)
+		{
+			Cast<T>(NewObject)->Deactivate();
+			idx = (idx + 1) % ObjectPool.Num();
+		}
+
+		return Cast<T>(NewObject);
 	}
 
 	template <typename T>

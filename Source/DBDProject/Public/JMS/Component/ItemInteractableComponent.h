@@ -15,6 +15,7 @@ class DBDPROJECT_API UItemInteractableComponent : public UInteractableComponent
 {
 	GENERATED_BODY()
 public:
+	UItemInteractableComponent();
 	virtual bool CanInteraction(AActor* Actor) override;
 	virtual void StartInteraction(AActor* Actor) override;
 	void SetInteractable(bool bInteractable);

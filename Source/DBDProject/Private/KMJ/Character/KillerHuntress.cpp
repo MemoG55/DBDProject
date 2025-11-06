@@ -9,13 +9,23 @@
 #include "KMJ/AbilitySystem/HuntressAttributeSet.h"
 #include "KMJ/AbilitySystem/KillerAbilitySystemComponent.h"
 #include "KMJ/AbilitySystem/KillerAttributeSet.h"
+#include "KMJ/Axe/AxeComponent.h"
+#include "KMJ/Axe/GenericPool.h"
 #include "KMJ/GAS/GA_Skill.h"
 #include "Net/UnrealNetwork.h"
+#include "Shared/DBDBlueprintFunctionLibrary.h"
 #include "Shared/DBDDebugHelper.h"
+#include "Shared/DBDGameplayTags.h"
 
 AKillerHuntress::AKillerHuntress()
 {
 	HuntressAttributeSet = CreateDefaultSubobject<UHuntressAttributeSet>(TEXT("HuntressAttributeSet"));
+	AxeComponent = CreateDefaultSubobject<UAxeComponent>(TEXT("AxeComponent"));
+
+	RightWeapon = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightWeapon"));
+	RightWeapon->SetupAttachment(GetMesh(), TEXT("RightWeapon"));
+	LeftAxe = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftAxe"));
+	LeftAxe->SetupAttachment(GetMesh(), FName(TEXT("LeftAxe")));
 }
 
 void AKillerHuntress::InitHuntressAttribute()
@@ -31,6 +41,7 @@ void AKillerHuntress::InitHuntressAttribute()
 			ReplicatedWalkSpeed = NewSpeed; 
 
 			GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
+			AxeComponent->InitProjectilePool(HuntressAttributeSet->AxeNumber.GetCurrentValue());
 		}
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
@@ -85,44 +96,37 @@ void AKillerHuntress::ClientSideInit()
 void AKillerHuntress::BeginPlay()
 {
 	Super::BeginPlay();
-	//TODO::IA_Killer_Skill의 Trigger GA_Skill과 연동
-	/*if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
-	{
-		IA_Killer_Skill.
-		EnhancedInput->BindAction(IA_Killer_Skill, ETriggerEvent::Triggered, this, &AKillerHuntress::OnKillerSkillPressed);
-		
-	}*/
 	KillerAttributeSet->OnWalkingSpeedChanged.AddDynamic(this, &AKillerHuntress::OnWalkingSpeedChanged);
-}
-/*
-void AKillerHuntress::OnKillerSkillPressed()
-{
-	if (KillerAbilitySystemComponent)
+	UDBDBlueprintFunctionLibrary::AddUniqueTagToActor(this, DBDGameplayTags::Killer_Huntress_Status_AxeFull);
+	//OnItemUIInitialize.Broadcast(this, EPlayerRole::Killer);
+	if (IsLocallyControlled())
 	{
-		TSubclassOf<UGameplayAbility> SkillAbilityClass = UGA_Skill::StaticClass();
-		TArray<FGameplayAbilitySpec> AbilitySpecs = KillerAbilitySystemComponent->GetActivatableAbilities();
-
-		for (const FGameplayAbilitySpec& AbilitySpec : AbilitySpecs)
-		{
-			if (AbilitySpec.Ability->GetClass() == SkillAbilityClass)
+		FTimerHandle BroadcastHandle;
+		GetWorldTimerManager().SetTimer(
+			BroadcastHandle,
+			[this]()
 			{
-				if (UGA_Skill* SkillAbility = Cast<UGA_Skill>(SkillAbilityClass)) SkillAbility->OnPressed();
-				return;
-			}
-		}
+				if (IsValid(this))
+				{
+					// JMS: UI수정: WidgetComponent에서 스폰 시 초기화
+					// OnItemUIInitialize.Broadcast(this, EPlayerRole::Killer);
+				}
+			},
+			5.0f,   // Delay 5 seconds
+			false   // 반복 안 함
+		);
 	}
 }
-*/
 
 void AKillerHuntress::OnRep_WalkSpeedChanged()
 {
-	Debug::Print(FString::Printf(TEXT("AKillerHuntress::OnRep_WalkSpeedChanged: %f"), ReplicatedWalkSpeed), 31);
+	//Debug::Print(FString::Printf(TEXT("AKillerHuntress::OnRep_WalkSpeedChanged: %f"), ReplicatedWalkSpeed), 31);
 	GetCharacterMovement()->MaxWalkSpeed = ReplicatedWalkSpeed;
 }
 
 void AKillerHuntress::OnWalkingSpeedChanged(float NewWalkingSpeed)
 {
-	Debug::Print(FString::Printf(TEXT("AKillerHuntress::OnWalkingSpeedChanged: %f"), ReplicatedWalkSpeed), 32);
+	//Debug::Print(FString::Printf(TEXT("AKillerHuntress::OnWalkingSpeedChanged: %f"), ReplicatedWalkSpeed), 32);
 	ReplicatedWalkSpeed = NewWalkingSpeed;
 }
 
@@ -130,4 +134,12 @@ void AKillerHuntress::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION_NOTIFY(AKillerHuntress, ReplicatedWalkSpeed, COND_None, REPNOTIFY_Always);
+}
+
+void AKillerHuntress::Multicast_SetLeftAxeVisibility_Implementation(bool bVisible)
+{
+	if (LeftAxe)
+	{
+		LeftAxe->SetVisibility(bVisible);
+	}
 }

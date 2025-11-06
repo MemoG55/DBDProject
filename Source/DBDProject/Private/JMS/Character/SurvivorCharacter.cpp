@@ -12,23 +12,38 @@
 #include "EnhancedInputComponent.h"
 #include "JMS/DataAsset/DA_SurvivorInput.h"
 #include "EnhancedInputSubsystems.h"
+#include "MotionWarpingComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/DecalComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/AssetManager.h"
 #include "JMS/Component/SkillCheckComponent.h"
 #include "JMS/Component/SurvivorInteractableComponent.h"
+#include "JMS/DataAsset/DA_SurvivorMontage.h"
+#include "JMS/GAS/ItemAttributeSet.h"
 #include "JMS/GAS/SurvivorAbilitySystemComponent.h"
 #include "JMS/GAS/SurvivorAttributeSet.h"
+#include "JMS/GAS/GE/GE_QuickAndQuiet.h"
 #include "JMS/GAS/GE/GE_SurvivorResetDyingHP.h"
 #include "JMS/GAS/GE/GE_SurvivorResetHealProgress.h"
 #include "JMS/Item/SurvivorItem.h"
 #include "JMS/ItemAddon/ItemAddonComponent.h"
+#include "JMS/ScratchMark/PoolEntry_ScratchMark.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "KMJ/Character/KillerCharacter.h"
+#include "MMJ/Object/Interactable/Obj_ExitDoor.h"
+#include "MMJ/Object/Interactable/Obj_Generator.h"
+#include "MMJ/Object/Interactable/Obj_Hook.h"
+#include "MMJ/Object/Widget/Obj_Progress.h"
 #include "Net/UnrealNetwork.h"
+#include "Shared/DBDBlueprintFunctionLibrary.h"
 #include "Shared/DBDDebugHelper.h"
 #include "Shared/DBDGameplayTags.h"
 #include "Shared/Animation/DBDAnimInstance.h"
+#include "Shared/Component/DBDMotionWarpingComponent.h"
 #include "Shared/Component/InteractableComponent.h"
 #include "Shared/Component/InteractorComponent.h"
 #include "Shared/Controller/DBDPlayerController.h"
@@ -36,9 +51,16 @@
 #include "Shared/GameFramework/DBDGameInstance.h"
 #include "Shared/GameFramework/DBDGameMode.h"
 #include "Shared/GameFramework/DBDPlayerState.h"
+#include "Shared/ObjectPool/DBDObjectPool.h"
+#include "Shared/ObjectPool/DBDObjectPoolComponent.h"
+#include "Shared/ObjectPool/GenericObjectPool.h"
+#include "Shared/Subsystem/DBDCharacterObserver.h"
+#include "Shared/Subsystem/DBDObjectObserver.h"
 #include "Shared/UI/DBDHUD.h"
+#include "Shared/UI/DBDWidgetComponent.h"
+#include "Sound/SoundCue.h"
 
-ASurvivorCharacter::ASurvivorCharacter()
+ASurvivorCharacter::ASurvivorCharacter(const FObjectInitializer& ObjectInitializer)
 {
 	// GAS
 	SurvivorAbilitySystemComponent = CreateDefaultSubobject<USurvivorAbilitySystemComponent>(
@@ -57,16 +79,20 @@ ASurvivorCharacter::ASurvivorCharacter()
 	bUseControllerRotationYaw = false;
 
 	// SkillCheckComponent
-	SkillCheckComponent = CreateDefaultSubobject<USkillCheckComponent>(TEXT("SkillCheckComponent"));
+	SkillCheckComponent_BPCorruption = CreateDefaultSubobject<USkillCheckComponent>(TEXT("SkillCheckComponent"));
 
-	// InteractorComponent
-	InteractorComponent = CreateDefaultSubobject<UInteractorComponent>(TEXT("InteractorComponent"));
-	InteractorComponent->SetupAttachment(GetRootComponent());
 
 	// InteractableComponent
 	SurvivorInteractableComponent = CreateDefaultSubobject<USurvivorInteractableComponent>(
 		TEXT("SurvivorInteractableComponent"));
 	SurvivorInteractableComponent->SetupAttachment(GetRootComponent());
+
+	// Skin
+	Skin = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skin"));
+	Skin->SetupAttachment(GetMesh());
+
+	// Scratch Mark
+	ScratchMarkPool = CreateDefaultSubobject<UDBDObjectPoolComponent>(TEXT("ScratchMarkPool"));
 
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
@@ -74,6 +100,8 @@ ASurvivorCharacter::ASurvivorCharacter()
 
 	GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
 	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+
+
 	BindGASChangeDelegate();
 }
 
@@ -82,11 +110,32 @@ UAbilitySystemComponent* ASurvivorCharacter::GetAbilitySystemComponent() const
 	return SurvivorAbilitySystemComponent;
 }
 
+APoolEntry_ScratchMark* ASurvivorCharacter::GetScratchMarkFromPool()
+{
+	return Cast<APoolEntry_ScratchMark>(ScratchMarkPool->SpawnPooledObject(this));
+}
+
+void ASurvivorCharacter::OnRep_CurrentHook(AObj_Hook* OldHook)
+{
+	// if (OldHook != CurrentHook && CurrentHook)
+	// {
+	// 	K2_DetachFromActor(EDetachmentRule::KeepWorld,
+	// 	                   EDetachmentRule::KeepWorld,
+	// 	                   EDetachmentRule::KeepWorld);
+	// 	UDBDBlueprintFunctionLibrary::AddOrUpdateMotionWarpingTarget(CurrentHook->GetMotionWarpingTargets(),
+	// 	                                                             MotionWarpingComponent);
+	// 	PlayAnimMontage(HookInMontage);
+	// }
+}
+
 void ASurvivorCharacter::RegisterHook(AObj_Hook* Hook)
 {
 	if (Hook)
 	{
 		CurrentHook = Hook;
+		UDBDBlueprintFunctionLibrary::AddOrUpdateMotionWarpingTarget(
+			IInteractable::Execute_GetMotionWarpingTargets(Cast<UObject>(CurrentHook)),
+			DBDMotionWarpingComponent);
 	}
 }
 
@@ -95,19 +144,6 @@ AObj_Hook* ASurvivorCharacter::GetCurrentHook() const
 	return CurrentHook;
 }
 
-void ASurvivorCharacter::OnRep_EquippedItem(ASurvivorItem* OldItem)
-{
-	if (OldItem && OldItem != EquippedItem)
-	{
-		OldItem->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	}
-	if (EquippedItem)
-	{
-		EquippedItem->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		                                ItemSocketName);
-	}
-	UpdateCurrentItemUI();
-}
 
 void ASurvivorCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -123,6 +159,10 @@ void ASurvivorCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		                                   &ASurvivorCharacter::LookAction);
 		EnhancedInputComponent->BindAction(InputData->IA_Move, ETriggerEvent::Triggered, this,
 		                                   &ASurvivorCharacter::MoveAction);
+		EnhancedInputComponent->BindAction(InputData->IA_UseItem, ETriggerEvent::Started, this,
+		                                   &ASurvivorCharacter::StartUsingItem);
+		EnhancedInputComponent->BindAction(InputData->IA_UseItem, ETriggerEvent::Completed, this,
+		                                   &ASurvivorCharacter::EndUsingItem);
 
 		for (const TPair<ESurvivorAbilityInputID, UInputAction*>& InputActionPair : InputData->
 		     GameplayAbilityInputActions)
@@ -130,9 +170,9 @@ void ASurvivorCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 			EnhancedInputComponent->BindAction(InputActionPair.Value, ETriggerEvent::Triggered, this,
 			                                   &ASurvivorCharacter::AbilityInput, InputActionPair.Key);
 		}
-		if (SkillCheckComponent)
+		if (SkillCheckComponent_BPCorruption)
 		{
-			SkillCheckComponent->SetupInputActionBinding(EnhancedInputComponent);
+			SkillCheckComponent_BPCorruption->SetupInputActionBinding(EnhancedInputComponent);
 		}
 	}
 }
@@ -153,39 +193,137 @@ void ASurvivorCharacter::PawnClientRestart()
 	}
 }
 
+void ASurvivorCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	if (!HasAuthority() || IsLocallyControlledByPlayer())
+	{
+		USkeletalMesh* MergedMesh = USkeletalMergingLibrary::MergeMeshes(SkeletalMeshMergeParamsForSkin);
+		if (MergedMesh)
+		{
+			Skin->SetSkeletalMeshAsset(MergedMesh);
+			Skin->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Skin->SetCollisionResponseToAllChannels(ECR_Ignore);
+			Skin->SetLeaderPoseComponent(GetMesh());
+		}
+	}
+
+	
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
+	{
+		//Debug::Print(TEXT("JMS11: CharacterObserver is NULL!"), 11);
+	}
+	else
+	{
+		if (ADBDPlayerState* DBDPS = GetWorld()->GetFirstPlayerController()->GetPlayerState<ADBDPlayerState>())
+		{
+			if (DBDPS->GetPlayerRole() == EPlayerRole::Killer)
+			{
+				CharacterObserver->EnableScratchMarkOnCurrentSurvivor(this);
+			}
+		}
+	}
+
+	if (IsLocallyControlledByPlayer())
+	{
+		GetWorldTimerManager().SetTimer(HeartBeatTimerHandle, this,
+		                                &ASurvivorCharacter::PlayHeartBeatIfKillerNearby,
+		                                0.5f, true);
+	}
+	// FTimerHandle InitUITimerHandle;
+	// GetWorld()->GetTimerManager().SetTimer(InitUITimerHandle, this, &ASurvivorCharacter::InitItemHUD, 5.f, false);
+	// FTimerHandle InitItemTimerHandle;
+	// GetWorld()->GetTimerManager().SetTimer(InitItemTimerHandle, this,
+	//                                        &ASurvivorCharacter::InitializeStartItemAfterWaitForReplicated, 3.f, false);
+	
+	if (ADBDPlayerState* PS = GetDBDPlayerState())
+	{
+		if (PS->GetPlayerEndState() != EPlayerEndState::None)
+		{
+			PlayAnimMontage(SurvivorMontageData->RunningOnExit);
+		}
+		else
+		{
+			PlayAnimMontage(SurvivorMontageData->StartMontage);
+		}
+	}
+	FTimerHandle ReadyTimerHandle;
+	GetWorldTimerManager().SetTimer(ReadyTimerHandle, this, &ASurvivorCharacter::SetReady, 3.f, false);
+
+	ADBDPlayerController* PC = Cast<ADBDPlayerController>(GetController());
+	if (PC)
+	{
+		DisableInput(PC);
+		if (ADBDPlayerState* PS = PC->GetPlayerState<ADBDPlayerState>())
+		{
+			if (PS->GetPlayerEndState() != EPlayerEndState::None)
+			{
+				DisableInput(PC);
+				UE_LOG(LogTemp, Warning, TEXT("MMJLog : EndLevel"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("MMJLog : InGameLevel"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MMJLog : Not Valid PS"));
+		}
+	}
+}
+
 void ASurvivorCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	// ADBDPlayerState* PS = Cast<ADBDPlayerState>(GetPlayerState());
-	// if (EquippedItem)
+	FString DebugString = FString::Printf(TEXT("MaxWalkSpeed: %f"), GetCharacterMovement()->MaxWalkSpeed);
+	if (CurrentHook)
+	{
+		// DebugString += FString::Printf(
+		// 	TEXT(", socket_SurvivorAttach: %s"),
+		// 	*CurrentHook->GetSkeletalMeshComponent()->GetSocketLocation(FName(TEXT("SurvivorAttach"))).ToString());
+	}
+	if (HasAuthority())
+	{
+		Debug::DebugStringWithNetMode(this, DebugString, GetActorLocation() + FVector(0, 0, 100), DeltaSeconds);
+	}
+	else
+	{
+		Debug::DebugStringWithNetMode(this, DebugString, GetActorLocation() + FVector(0, 0, 120), DeltaSeconds);
+	}
+	// if (const FMotionWarpingTarget* Target = DBDMotionWarpingComponent->FindWarpTarget(FName(TEXT("SurvivorHookIn"))))
 	// {
-	// 	Debug::Print(TEXT("JMS11 : Survivor Item : ") + EquippedItem->GetName(), 11);
-	// }
-	// else
-	// {
-	// 	Debug::Print(TEXT("JMS11 : Survivor Item : None"), 11);
-	// }
-	// if (PS)
-	// {
-	// 	if (PS->SurvivorLoadout.ItemInfo.Item.IsValid())
-	// 	{
-	// 		Debug::Print(TEXT("JMS12 : Survivor Item Info: ") + PS->SurvivorLoadout.ItemInfo.Item.ToString(), 12);
-	// 	}
+	// 	FVector CharLineStart = GetActorLocation();
+	// 	FVector CharLineEnd = CharLineStart + GetActorForwardVector() * 100;
+	// 	DrawDebugSphere(GetWorld(), CharLineEnd, 20, 12, FColor::Green, false, DeltaSeconds * 2);
+	// 	DrawDebugLine(GetWorld(), CharLineStart, CharLineEnd, FColor::Green, false, DeltaSeconds * 2);
+	// 	FVector LineStart = Target->Component->GetSocketLocation(Target->BoneName);
+	// 	FVector LineEnd = LineStart + Target->Component->GetSocketRotation(Target->BoneName).Vector() * 100;
+	// 	DrawDebugLine(GetWorld(), LineStart, LineEnd, FColor::Red, false, DeltaSeconds * 2);
+	// 	DrawDebugSphere(GetWorld(), LineEnd, 20, 12, FColor::Red, false, DeltaSeconds * 2);
 	// }
 }
 
 void ASurvivorCharacter::HealProgressChanged(const FOnAttributeChangeData& OnAttributeChangeData)
 {
-	bool bFound1,bFound2 = false;
+	bool bFound1, bFound2 = false;
 	float CurrentHealProgress = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
 		USurvivorAttributeSet::GetHealProgressAttribute(), bFound1);
 	float MaxHealProgress = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
 		USurvivorAttributeSet::GetMaxHealProgressAttribute(), bFound2);
-	if (bFound1&&bFound2)
+	if (bFound1 && bFound2)
 	{
 		if (CurrentHealProgress >= MaxHealProgress)
 		{
-			SetSurvivorNormal();
+			if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Dying))
+			{
+				SetSurvivorInjured();
+			}
+			else if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Injured))
+			{
+				SetSurvivorNormal();
+			}
 			SurvivorInteractableComponent->OnComplete.Broadcast();
 		}
 	}
@@ -193,17 +331,46 @@ void ASurvivorCharacter::HealProgressChanged(const FOnAttributeChangeData& OnAtt
 
 void ASurvivorCharacter::DyingHPChanged(const FOnAttributeChangeData& OnAttributeChangeData)
 {
-	bool bFound1,bFound2 = false;
-	float CurrentDyingHP = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
-		USurvivorAttributeSet::GetDyingHPAttribute(), bFound1);
-	float MaxDyingHP = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
-		USurvivorAttributeSet::GetMaxDyingHPAttribute(), bFound2);
-	if (bFound1&&bFound2)
+	// bool bFound1, bFound2 = false;
+	// float CurrentDyingHP = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+	// 	USurvivorAttributeSet::GetDyingHPAttribute(), bFound1);
+	// float MaxDyingHP = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+	// 	USurvivorAttributeSet::GetMaxDyingHPAttribute(), bFound2);
+	// if (bFound1 && bFound2)
+	// {
+	// 	if (CurrentDyingHP >= MaxDyingHP)
+	// 	{
+	// 		SetSurvivorInjured();
+	// 		SurvivorInteractableComponent->OnComplete.Broadcast();
+	// 	}
+	// }
+}
+
+void ASurvivorCharacter::MovementSpeedChanged(const FOnAttributeChangeData& OnAttributeChangeData)
+{
+	if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Sprinting))
 	{
-		if (CurrentDyingHP >= MaxDyingHP)
+		return;
+	}
+	bool bFound = false;
+	float MovementSpeed = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+		USurvivorAttributeSet::GetMovementSpeedAttribute(), bFound);
+	if (bFound)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = MovementSpeed;
+	}
+}
+
+void ASurvivorCharacter::SprintSpeedChanged(const FOnAttributeChangeData& OnAttributeChangeData)
+{
+	if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Sprinting))
+	{
+		bool bFound = false;
+		float SprintSpeed = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+			USurvivorAttributeSet::GetSprintSpeedAttribute(), bFound);
+		if (bFound)
 		{
-			SetSurvivorInjured();
-			SurvivorInteractableComponent->OnComplete.Broadcast();
+			GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
 		}
 	}
 }
@@ -216,6 +383,14 @@ void ASurvivorCharacter::BindGASChangeDelegate()
 			this, &ASurvivorCharacter::DeathTagUpdate);
 		SurvivorAbilitySystemComponent->RegisterGameplayTagEvent(DBDGameplayTags::Survivor_Status_Escaped).AddUObject(
 			this, &ASurvivorCharacter::EscapeTagUpdate);
+		SurvivorAbilitySystemComponent->RegisterGameplayTagEvent(DBDGameplayTags::Survivor_Status_Sprinting).AddUObject(
+			this, &ASurvivorCharacter::SprintTagUpdate);
+		SurvivorAbilitySystemComponent->RegisterGameplayTagEvent(
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Survivor.Status.Captured")))).AddUObject(
+			this, &ASurvivorCharacter::CapturedTagUpdate);
+		SurvivorAbilitySystemComponent->RegisterGameplayTagEvent(DBDGameplayTags::Survivor_Status_HookedPhase2).
+		                                AddUObject(
+			                                this, &ASurvivorCharacter::HookPhase2TagUpdate);
 	}
 	SurvivorAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 		USurvivorAttributeSet::GetHealProgressAttribute()).AddUObject(
@@ -223,6 +398,12 @@ void ASurvivorCharacter::BindGASChangeDelegate()
 	SurvivorAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 		USurvivorAttributeSet::GetDyingHPAttribute()).AddUObject(
 		this, &ASurvivorCharacter::DyingHPChanged);
+	SurvivorAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		USurvivorAttributeSet::GetMovementSpeedAttribute()).AddUObject(
+		this, &ASurvivorCharacter::MovementSpeedChanged);
+	SurvivorAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+		USurvivorAttributeSet::GetSprintSpeedAttribute()).AddUObject(
+		this, &ASurvivorCharacter::SprintSpeedChanged);
 }
 
 void ASurvivorCharacter::DeathTagUpdate(const FGameplayTag Tag, int32 NewCount)
@@ -232,20 +413,10 @@ void ASurvivorCharacter::DeathTagUpdate(const FGameplayTag Tag, int32 NewCount)
 	// {
 	// 	PC->EnterSpectatorCam();
 	// }
-	SetCollisionAndGravityEnabled(false);
-	SetActorHiddenInGame(true);
-	if (EquippedItem)
-	{
-		EquippedItem->SetActorHiddenInGame(true);
-	}
-	if (HasAuthority())
-	{
-		ADBDGameMode* DBDGM = Cast<ADBDGameMode>(UGameplayStatics::GetGameMode(this));
-		if (DBDGM)
-		{
-			DBDGM->CheckGameCondition();
-		}
-	}
+	HideItemMesh(true);
+	float Duration = PlaySyncMontageFromServer(SurvivorMontageData->HookDead);
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &ASurvivorCharacter::AfterDeathMontage, Duration, false);
 }
 
 void ASurvivorCharacter::EscapeTagUpdate(const FGameplayTag Tag, int32 NewCount)
@@ -257,6 +428,12 @@ void ASurvivorCharacter::EscapeTagUpdate(const FGameplayTag Tag, int32 NewCount)
 	// }
 	SetCollisionAndGravityEnabled(false);
 	SetActorHiddenInGame(true);
+	if (GetCharacterMovement())
+	{
+		GetCharacterMovement()->MovementMode = MOVE_None;
+		GetCharacterMovement()->StopActiveMovement();
+	}
+	
 	if (EquippedItem)
 	{
 		EquippedItem->SetActorHiddenInGame(true);
@@ -271,6 +448,80 @@ void ASurvivorCharacter::EscapeTagUpdate(const FGameplayTag Tag, int32 NewCount)
 	}
 }
 
+void ASurvivorCharacter::SprintTagUpdate(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		bool bFound = false;
+		float SprintSpeed = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+			USurvivorAttributeSet::GetSprintSpeedAttribute(), bFound);
+		if (bFound)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		}
+	}
+	else
+	{
+		bool bFound = false;
+		float MovementSpeed = SurvivorAbilitySystemComponent->GetGameplayAttributeValue(
+			USurvivorAttributeSet::GetMovementSpeedAttribute(), bFound);
+		if (bFound)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = MovementSpeed;
+		}
+	}
+	SprintTagUpdateDelegate.Broadcast(this, NewCount);
+}
+
+void ASurvivorCharacter::CapturedTagUpdate(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0)
+	{
+		SetCollisionAndGravityEnabled(false);
+		AddUniqueTag(DBDGameplayTags::Survivor_Status_MoveDisabled);
+	}
+	else
+	{
+		SetCollisionAndGravityEnabled(true);
+		RemoveTag(DBDGameplayTags::Survivor_Status_MoveDisabled);
+	}
+}
+
+void ASurvivorCharacter::HookPhase2TagUpdate(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount > 0 && !SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Dead))
+	{
+		PlaySyncMontageFromServer(SurvivorMontageData->HookPhase2Start);
+	}
+	else
+	{
+		if (SurvivorMontageData->HookPhase2Start == GetMesh()->GetAnimInstance()->GetCurrentActiveMontage())
+		{
+			StopSyncMontageFromServer(SurvivorMontageData->HookPhase2Start);
+		}
+	}
+}
+
+void ASurvivorCharacter::AfterDeathMontage()
+{
+	SetCollisionAndGravityEnabled(false);
+	SetActorHiddenInGame(true);
+	if (EquippedItem)
+	{
+		EquippedItem->SetActorHiddenInGame(true);
+	}
+	if (HasAuthority())
+	{
+		ADBDGameMode* DBDGM = Cast<ADBDGameMode>(UGameplayStatics::GetGameMode(this));
+		if (DBDGM)
+		{
+			DBDGM->CheckGameCondition();
+		}
+	}
+	MoveEnabled(false);
+	bIsReadyToStart = false;
+}
+
 ADBDPlayerState* ASurvivorCharacter::GetDBDPlayerState() const
 {
 	return Cast<ADBDPlayerState>(GetPlayerState());
@@ -279,7 +530,9 @@ ADBDPlayerState* ASurvivorCharacter::GetDBDPlayerState() const
 void ASurvivorCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION_NOTIFY(ASurvivorCharacter, EquippedItem, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASurvivorCharacter, CurrentHook, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASurvivorCharacter, bIsMoveEnabled, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASurvivorCharacter, EquippedItem, COND_InitialOnly, REPNOTIFY_Always);
 }
 
 
@@ -311,6 +564,10 @@ void ASurvivorCharacter::MoveAction(const FInputActionValue& InputActionValue)
 	{
 		return;
 	}
+	if (!bIsMoveEnabled)
+	{
+		return;
+	}
 	FVector2D InputValue = InputActionValue.Get<FVector2D>();
 
 	AddMovementInput(GetMoveForwardDirection() * InputValue.Y + GetLookRightDirection() * InputValue.X);
@@ -331,12 +588,6 @@ FVector ASurvivorCharacter::GetMoveForwardDirection() const
 	return FVector::CrossProduct(GetLookRightDirection(), FVector::UpVector);
 }
 
-void ASurvivorCharacter::UpdateCurrentItemUI()
-{
-	EquippedItemChangedDelegate.Broadcast(EquippedItem);
-}
-
-
 void ASurvivorCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -354,6 +605,7 @@ void ASurvivorCharacter::OnRep_PlayerState()
 
 void ASurvivorCharacter::EquipItem(ASurvivorItem* ItemToEquip)
 {
+	UItemAddonComponent *Addon1 = nullptr, *Addon2 = nullptr;
 	if (ItemToEquip)
 	{
 		ItemToEquip->SetOwner(this);
@@ -361,72 +613,159 @@ void ASurvivorCharacter::EquipItem(ASurvivorItem* ItemToEquip)
 		                               ItemSocketName);
 		ItemToEquip->OnEquipItem();
 		EquippedItem = ItemToEquip;
+		Addon1 = ItemToEquip->GetAddon1();
+		Addon2 = ItemToEquip->GetAddon2();
 	}
-	UpdateCurrentItemUI();
+	Client_UpdateCurrentItem(EquippedItem, Addon1, Addon2);
 }
 
-void ASurvivorCharacter::DropItem()
+void ASurvivorCharacter::DropItem(ASurvivorItem* ItemToPickUp)
+{
+	if (EquippedItem)
+	{
+		// SurvivorAttributeSet->OnCurrentItemChargeChanged.Unbind();
+
+		EquippedItem->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		EquippedItem->OnDropItem();
+		EquippedItem->SetOwner(nullptr);
+		if (!ItemToPickUp)
+		{
+			FVector Start = GetActorLocation();
+			FVector End = Start - FVector(0, 0, 200.0f);
+
+			FHitResult HitResult;
+			FCollisionShape Shape = FCollisionShape::MakeSphere(10.0f); // 반���0짜리 구체��
+			FCollisionQueryParams Params;
+			Params.AddIgnoredActor(this);
+
+			bool bHit = GetWorld()->SweepSingleByChannel(
+				HitResult,
+				Start,
+				End,
+				FQuat::Identity,
+				ECC_Visibility,
+				Shape,
+				Params
+			);
+
+			if (bHit)
+			{
+				FVector DropLocation = HitResult.Location;
+				EquippedItem->SetActorLocation(DropLocation);
+			}
+			else
+			{
+				EquippedItem->SetActorLocation(Start);
+			}
+		}
+		else
+		{
+			EquippedItem->SetActorLocation(ItemToPickUp->GetActorLocation());
+			EquippedItem->SetActorRotation(ItemToPickUp->GetActorRotation());
+		}
+		EquippedItem = nullptr;
+	}
+	Client_UpdateCurrentItem(nullptr, nullptr, nullptr);
+}
+
+void ASurvivorCharacter::PickUpItem(ASurvivorItem* ItemToPickUp)
+{
+	if (!ItemToPickUp)
+	{
+		return;
+	}
+	FVector ExchangeLocation = ItemToPickUp->GetActorLocation();
+	if (EquippedItem)
+	{
+		DropItem(ItemToPickUp);
+	}
+	EquipItem(ItemToPickUp);
+}
+
+
+void ASurvivorCharacter::StartUsingItem()
+{
+	if (EquippedItem)
+	{
+		// EquippedItem->OnStartUsingItem();
+		Server_ApplyUsingEffectToItem();
+	}
+}
+
+void ASurvivorCharacter::Server_ApplyUsingEffectToItem_Implementation()
+{
+	SurvivorAbilitySystemComponent->BP_ApplyGameplayEffectToSelf(GEforUseItem, 0,
+	                                                             SurvivorAbilitySystemComponent->MakeEffectContext());
+}
+
+void ASurvivorCharacter::EndUsingItem()
+{
+	if (EquippedItem)
+	{
+		// EquippedItem->OnEndUsingItem();
+		Server_RemoveUsingEffectFromItem();
+	}
+}
+
+void ASurvivorCharacter::Server_RemoveUsingEffectFromItem_Implementation()
+{
+	SurvivorAbilitySystemComponent->RemoveActiveGameplayEffectBySourceEffect(
+		GEforUseItem, SurvivorAbilitySystemComponent);
+}
+
+void ASurvivorCharacter::Client_UpdateCurrentItem_Implementation(ASurvivorItem* NewItem, UItemAddonComponent* Addon1,
+                                                                 UItemAddonComponent* Addon2)
 {
 	if (EquippedItem)
 	{
 		EquippedItem->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		EquippedItem->OnDropItem();
-		EquippedItem->SetOwner(nullptr);
-		FVector Start = GetActorLocation();
-		FVector End = Start - FVector(0, 0, 200.0f);
-
-		FHitResult HitResult;
-		FCollisionShape Shape = FCollisionShape::MakeSphere(10.0f); // 반지름 10짜리 구체로 검사
-
-		FCollisionQueryParams Params;
-		Params.AddIgnoredActor(this);
-
-		bool bHit = GetWorld()->SweepSingleByChannel(
-			HitResult,
-			Start,
-			End,
-			FQuat::Identity,
-			ECC_Visibility,
-			Shape,
-			Params
-		);
-
-		if (bHit)
-		{
-			FVector DropLocation = HitResult.Location;
-			EquippedItem->SetActorLocation(DropLocation);
-		}
-		else
-		{
-			EquippedItem->SetActorLocation(Start);
-		}
-		EquippedItem = nullptr;
 	}
-	UpdateCurrentItemUI();
-}
-
-void ASurvivorCharacter::ExchangeItem(ASurvivorItem* ItemToExchange)
-{
-	UpdateCurrentItemUI();
-}
-
-
-void ASurvivorCharacter::UseEquippedItem()
-{
+	if (NewItem)
+	{
+		NewItem->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		                           ItemSocketName);
+	}
+	EquippedItem = NewItem;
 	if (EquippedItem)
 	{
-		EquippedItem->OnItemUsed();
+		if (Addon1)
+		{
+			EquippedItem->AttachAddon1(Addon1);
+		}
+		if (Addon2)
+		{
+			EquippedItem->AttachAddon2(Addon2);
+		}
 	}
+	//EquippedItemChangedDelegate.Broadcast(EquippedItem);
+	// OnItemUIInitialize.Broadcast(this, GetInteractorRole());
+	GetWidgetComponent()->OnUpdateEquippedItem.Broadcast(EquippedItem);
+	if (EquippedItem)
+		UE_LOG(LogTemp, Warning, TEXT("EquippedItem : %s"), *EquippedItem->GetName());
+}
+
+
+// void ASurvivorCharacter::InitItemHUD()
+// {
+// 	if (EquippedItem)
+// 	{
+// 		if (HasAuthority())
+// 		{
+// 			Client_UpdateCurrentItem(EquippedItem, EquippedItem->GetAddon1(), EquippedItem->GetAddon2());
+// 		}
+// 		else
+// 			OnItemUIInitialize.Broadcast(this, GetInteractorRole());
+// 	}
+// }
+
+ASurvivorItem* ASurvivorCharacter::GetEquippedItem() const
+{
+	return EquippedItem;
 }
 
 UInteractableComponent* ASurvivorCharacter::GetInteractableComponent() const
 {
 	return SurvivorInteractableComponent;
-}
-
-UInteractorComponent* ASurvivorCharacter::GetInteractorComponent() const
-{
-	return InteractorComponent;
 }
 
 EPlayerRole ASurvivorCharacter::GetInteractorRole() const
@@ -436,25 +775,46 @@ EPlayerRole ASurvivorCharacter::GetInteractorRole() const
 
 USkillCheckComponent* ASurvivorCharacter::GetSkillCheckComponent() const
 {
-	return SkillCheckComponent;
+	return SkillCheckComponent_BPCorruption;
+}
+
+// void ASurvivorCharacter::InitializeStartItemAfterWaitForReplicated()
+// {
+// 	if (EquippedItem)
+// 	{
+// 		Client_UpdateCurrentItem(EquippedItem, EquippedItem->GetAddon1(), EquippedItem->GetAddon2());
+// 	}
+// }
+
+void ASurvivorCharacter::OnRep_EquippedItem(ASurvivorItem* OldItem)
+{
+	if (OldItem != EquippedItem)
+	{
+		GetWidgetComponent()->OnUpdateEquippedItem.Broadcast(EquippedItem);
+	}
 }
 
 void ASurvivorCharacter::MoveEnabled(bool bEnable)
 {
+	bIsMoveEnabled = bEnable;
 	GetCharacterMovement()->SetMovementMode(bEnable ? MOVE_Walking : MOVE_None);
 }
 
+// MovementMode�None�나 Custom�로 �면 모션�핑�동�� �습�다.
 void ASurvivorCharacter::SetCollisionAndGravityEnabled(bool bEnable)
 {
-	GetCharacterMovement()->SetMovementMode(bEnable ? MOVE_Walking : MOVE_None);
+	// GetCharacterMovement()->SetMovementMode(bEnable ? MOVE_Walking : MOVE_Swimming);
 	GetCapsuleComponent()->SetCollisionEnabled(bEnable
 		                                           ? ECollisionEnabled::QueryAndPhysics
-		                                           : ECollisionEnabled::NoCollision);
+		                                           : ECollisionEnabled::Type::QueryOnly);
 
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, bEnable ? ECR_Block : ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldStatic, bEnable ? ECR_Block : ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, bEnable ? ECR_Block : ECR_Ignore);
 	GetCharacterMovement()->GravityScale = bEnable ? 1.0f : 0.0f;
 	GetMesh()->SetEnableGravity(bEnable);
 	bIsCollisionAndGravityEnabled = bEnable;
+	// SetActorEnableCollision(bEnable);
 }
 
 bool ASurvivorCharacter::IsCollisionAndGravityEnabled() const
@@ -462,17 +822,33 @@ bool ASurvivorCharacter::IsCollisionAndGravityEnabled() const
 	return bIsCollisionAndGravityEnabled;
 }
 
+bool ASurvivorCharacter::GetIsReadyToStart() const
+{
+	return bIsReadyToStart;
+}
+
+void ASurvivorCharacter::SetReady()
+{
+	bIsReadyToStart = true;
+}
+
 void ASurvivorCharacter::AttackSurvivor()
 {
-	if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Dying))
+	FGameplayTagContainer AttackDisabledTagContainer;
+	AttackDisabledTagContainer.AddTag(DBDGameplayTags::Survivor_Status_Dying);
+	AttackDisabledTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Survivor.Status.Captured")));
+	FGameplayEventData EventData;
+	if (SurvivorAbilitySystemComponent->HasAnyMatchingGameplayTags(AttackDisabledTagContainer))
 	{
 	}
 	else if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Injured))
 	{
+		SendGameplayTagEventToSelf(DBDGameplayTags::Survivor_Event_GetHit, EventData);
 		SetSurvivorDying();
 	}
 	else
 	{
+		SendGameplayTagEventToSelf(DBDGameplayTags::Survivor_Event_GetHit, EventData);
 		SetSurvivorInjured();
 	}
 }
@@ -483,8 +859,8 @@ void ASurvivorCharacter::SetSurvivorInjured()
 	AddUniqueTag(DBDGameplayTags::Survivor_Status_Injured);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Dying);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_CaptureEnabled);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Hooked);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Killer);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Hook);
 	SurvivorAbilitySystemComponent->BP_ApplyGameplayEffectToSelf(UGE_SurvivorResetHealProgress::StaticClass(), 0,
 	                                                             SurvivorAbilitySystemComponent->
 	                                                             MakeEffectContext());
@@ -496,11 +872,11 @@ void ASurvivorCharacter::SetSurvivorDying()
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Injured);
 	AddUniqueTag(DBDGameplayTags::Survivor_Status_Dying);
 	AddUniqueTag(DBDGameplayTags::Survivor_Status_CaptureEnabled);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Hooked);
-	SurvivorAbilitySystemComponent->BP_ApplyGameplayEffectToSelf(UGE_SurvivorResetDyingHP::StaticClass(), 0,
-															 SurvivorAbilitySystemComponent->
-															 MakeEffectContext());
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Killer);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Hook);
+	SurvivorAbilitySystemComponent->BP_ApplyGameplayEffectToSelf(UGE_SurvivorResetHealProgress::StaticClass(), 0,
+	                                                             SurvivorAbilitySystemComponent->
+	                                                             MakeEffectContext());
 }
 
 void ASurvivorCharacter::SetSurvivorNormal()
@@ -509,8 +885,8 @@ void ASurvivorCharacter::SetSurvivorNormal()
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Injured);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Dying);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_CaptureEnabled);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Hooked);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Killer);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Hook);
 }
 
 void ASurvivorCharacter::CaptureSurvivor()
@@ -519,21 +895,39 @@ void ASurvivorCharacter::CaptureSurvivor()
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Injured);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_Dying);
 	RemoveTagAll(DBDGameplayTags::Survivor_Status_CaptureEnabled);
-	AddUniqueTag(DBDGameplayTags::Survivor_Status_Captured);
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Hooked);
+	AddUniqueTag(DBDGameplayTags::Survivor_Status_Captured_Killer);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Hook);
 }
 
-void ASurvivorCharacter::HookSurvivor(AObj_Hook* Hook)
+void ASurvivorCharacter::AuthHookSurvivor(AObj_Hook* Hook)
 {
-	AddTag(DBDGameplayTags::Survivor_Status_HookCount);
-	AddUniqueTag(DBDGameplayTags::Survivor_Status_Hooked);
-	RegisterHook(Hook);
+	if (HasAuthority())
+	{
+		RegisterHook(Hook);
+		// PlayAnimMontage(HookInMontage);
+		AddTag(DBDGameplayTags::Survivor_Status_HookCount);
+		RemoveTagAll(DBDGameplayTags::Survivor_Status_CaptureEnabled);
+		RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Killer);
+		MoveIgnoreActorAdd(Hook);
+		SetMoveIgnoreSurvivors(true);
+		FTransform ResultTransform = UDBDBlueprintFunctionLibrary::MoveCharacterWithRotationAdjust(
+			CurrentHook->GetSkeletalMeshComponent(),
+			FName(TEXT("socket_SurvivorAttach")),
+			this, FRotator(0.f, 120.f, 0.f));
+		LookAtTargetActorLocal(Hook, 180);
+		SetCollisionAndGravityEnabled(false);
+		float HookInMontageDuration = SyncTransformAndPlayMontageFromServer(
+			GetActorTransform(), SurvivorMontageData->HookIn);
+		AddUniqueTag(DBDGameplayTags::Survivor_Status_Captured_Hook);
+		FTimerHandle TimerHandle;
+	}
 }
+
 
 void ASurvivorCharacter::ReleaseSurvivor()
 {
 	SetSurvivorInjured();
-	RemoveTagAll(DBDGameplayTags::Survivor_Status_Hooked);
+	RemoveTagAll(DBDGameplayTags::Survivor_Status_Captured_Hook);
 	CurrentHook = nullptr;
 }
 
@@ -546,6 +940,19 @@ void ASurvivorCharacter::SetSurvivorDead()
 {
 	AddUniqueTag(DBDGameplayTags::Survivor_Status_Dead);
 }
+
+void ASurvivorCharacter::SetSurvivorMoving(bool IsMoving)
+{
+	if (IsMoving)
+	{
+		AddUniqueTag(DBDGameplayTags::Survivor_Status_Moving);
+	}
+	else
+	{
+		RemoveTagAll(DBDGameplayTags::Survivor_Status_Moving);
+	}
+}
+
 
 void ASurvivorCharacter::InitializeEquippedItem(FSurvivorItemInstanceInfo InitialItemInfo)
 {
@@ -577,7 +984,7 @@ void ASurvivorCharacter::InitializeEquippedItem(FSurvivorItemInstanceInfo Initia
 	}
 	else
 	{
-		Debug::Print(TEXT("JMS111 : SurvivorItemDB Load Failed"), 111);
+		//Debug::Print(TEXT("JMS111 : SurvivorItemDB Load Failed"), 111);
 	}
 
 	if (!SpawnedItem)
@@ -600,6 +1007,7 @@ void ASurvivorCharacter::InitializeEquippedItem(FSurvivorItemInstanceInfo Initia
 				{
 					UItemAddonComponent* ItemAddon = NewObject<UItemAddonComponent>(SpawnedItem, ItemAddonClassFromDB);
 					SpawnedItem->AttachAddon1(ItemAddon);
+					ItemAddon->OnInitialized();
 				}
 			}
 		}
@@ -613,13 +1021,14 @@ void ASurvivorCharacter::InitializeEquippedItem(FSurvivorItemInstanceInfo Initia
 				{
 					UItemAddonComponent* ItemAddon = NewObject<UItemAddonComponent>(SpawnedItem, ItemAddonClassFromDB);
 					SpawnedItem->AttachAddon2(ItemAddon);
+					ItemAddon->OnInitialized();
 				}
 			}
 		}
 	}
 	else
 	{
-		Debug::Print(TEXT("JMS112 : SurvivorItemAddonDB Load Failed"), 111);
+		//Debug::Print(TEXT("JMS112 : SurvivorItemAddonDB Load Failed"), 111);
 	}
 
 	EquipItem(SpawnedItem);
@@ -629,6 +1038,8 @@ void ASurvivorCharacter::ServerSideInit()
 {
 	SurvivorAbilitySystemComponent->InitAbilityActorInfo(this, this);
 	SurvivorAbilitySystemComponent->ServerSideInit();
+	SetSurvivorNormal();
+
 	ADBDPlayerState* PS = Cast<ADBDPlayerState>(GetPlayerState());
 	if (PS)
 	{
@@ -652,6 +1063,15 @@ void ASurvivorCharacter::ServerSideInit()
 	{
 		InitializeEquippedItem(InitialItemInfo);
 	}
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
+	{
+		//Debug::Print(TEXT("JMS11: CharacterObserver is NULL!"), 11);
+	}
+	else
+	{
+		CharacterObserver->RegisterSurvivor(this);
+	}
 }
 
 void ASurvivorCharacter::ClientSideInit()
@@ -663,31 +1083,63 @@ void ASurvivorCharacter::ClientSideInit()
 		DBDAnimInstance->InitializeWithAbilitySystem(SurvivorAbilitySystemComponent);
 	}
 
-	TempPrototypeWidget = CreateWidget<UDBDHUD>(GetLocalViewingPlayerController(), TempPrototypeWidgetClass);
-	if (TempPrototypeWidget)
+	// TempPrototypeWidget = CreateWidget<UDBDHUD>(GetLocalViewingPlayerController(), TempPrototypeWidgetClass);
+	// if (TempPrototypeWidget)
+	// {
+	// 	TempPrototypeWidget->AddToViewport();
+	// }
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
 	{
-		TempPrototypeWidget->AddToViewport();
+		//Debug::Print(TEXT("JMS11: CharacterObserver is NULL!"), 11);
 	}
-	UpdateCurrentItemUI();
+	else
+	{
+		CharacterObserver->RegisterSurvivor(this);
+	}
 }
 
 bool ASurvivorCharacter::IsLocallyControlledByPlayer() const
 {
-	// 로컬제어 & 플레이어 컨트롤러인지 판단
+	// 로컬�어 & �레�어 컨트롤러�� �단
 	return GetController() && GetController()->IsLocalPlayerController();
+}
+
+USkeletalMeshComponent* ASurvivorCharacter::GetSkin()
+{
+	return Skin;
 }
 
 void ASurvivorCharacter::AddUniqueTag(FGameplayTag Tag)
 {
-	ServerAddUniqueTag(Tag);
+	if (!HasAuthority())
+	{
+		Server_AddUniqueTag(Tag);
+	}
+	else
+	{
+		if (!SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
+		{
+			SurvivorAbilitySystemComponent->AddLooseGameplayTag(Tag);
+			SurvivorAbilitySystemComponent->AddReplicatedLooseGameplayTag(Tag);
+		}
+	}
 }
 
 void ASurvivorCharacter::AddTag(FGameplayTag Tag)
 {
-	ServerAddTag(Tag);
+	if (!HasAuthority())
+	{
+		Server_AddTag(Tag);
+	}
+	else
+	{
+		SurvivorAbilitySystemComponent->AddLooseGameplayTag(Tag);
+		SurvivorAbilitySystemComponent->AddReplicatedLooseGameplayTag(Tag);
+	}
 }
 
-void ASurvivorCharacter::ServerAddTag_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::Server_AddTag_Implementation(const FGameplayTag& Tag)
 {
 	SurvivorAbilitySystemComponent->AddLooseGameplayTag(Tag);
 	SurvivorAbilitySystemComponent->AddReplicatedLooseGameplayTag(Tag);
@@ -695,37 +1147,227 @@ void ASurvivorCharacter::ServerAddTag_Implementation(const FGameplayTag& Tag)
 
 void ASurvivorCharacter::RemoveTag(FGameplayTag Tag)
 {
-	ServerRemoveTag(Tag);
+	if (!HasAuthority())
+	{
+		Server_RemoveTag(Tag);
+	}
+	else
+	{
+		SurvivorAbilitySystemComponent->RemoveLooseGameplayTag(Tag);
+		SurvivorAbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
+	}
 }
 
 void ASurvivorCharacter::RemoveTagAll(FGameplayTag Tag)
 {
-	ServerRemoveTagAll(Tag);
+	if (!HasAuthority())
+	{
+		Server_RemoveTagAll(Tag);
+	}
+	else
+	{
+		if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
+		{
+			SurvivorAbilitySystemComponent->RemoveLooseGameplayTags(FGameplayTagContainer(Tag),
+			                                                        SurvivorAbilitySystemComponent->GetTagCount(Tag));
+			SurvivorAbilitySystemComponent->RemoveReplicatedLooseGameplayTags(FGameplayTagContainer(Tag));
+		}
+	}
 }
 
-void ASurvivorCharacter::ServerRemoveTagAll_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::Server_RemoveTagAll_Implementation(const FGameplayTag& Tag)
 {
-	SurvivorAbilitySystemComponent->RemoveLooseGameplayTags(FGameplayTagContainer(Tag),
-	                                                        SurvivorAbilitySystemComponent->GetTagCount(Tag));
-	SurvivorAbilitySystemComponent->RemoveReplicatedLooseGameplayTags(FGameplayTagContainer(Tag));
+	if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
+	{
+		SurvivorAbilitySystemComponent->RemoveLooseGameplayTags(FGameplayTagContainer(Tag),
+		                                                        SurvivorAbilitySystemComponent->GetTagCount(Tag));
+		SurvivorAbilitySystemComponent->RemoveReplicatedLooseGameplayTags(FGameplayTagContainer(Tag));
+	}
 }
 
 void ASurvivorCharacter::PrintHasTag(FGameplayTag Tag)
 {
-	ServerPrintHasTag(Tag);
+	if (!HasAuthority())
+	{
+		Server_PrintHasTag(Tag);
+	}
+	else
+	{
+		if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("JMS : Tag exist"))
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("JMS : Tag does not exist"))
+		}
+	}
 }
 
-void ASurvivorCharacter::SendGameplayTagEvent(FGameplayTag Tag)
+void ASurvivorCharacter::SendGameplayTagEventToSelf(FGameplayTag Tag, FGameplayEventData EventData)
 {
-	ServerSendGameplayTagEvent(Tag);
+	if (!HasAuthority())
+	{
+		Server_SendGameplayTagEventToSelf(Tag, EventData);
+	}
+	else
+	{
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, EventData);
+	}
 }
 
-void ASurvivorCharacter::ServerSendGameplayTagEvent_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::EnableAura(int32 StencilValue)
 {
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, FGameplayEventData());
+	Super::EnableAura(1);
+	GetSkin()->SetRenderCustomDepth(true);
+	GetSkin()->SetCustomDepthStencilValue(StencilValue);
 }
 
-void ASurvivorCharacter::ServerPrintHasTag_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::DisableAura()
+{
+	Super::DisableAura();
+	GetSkin()->SetRenderCustomDepth(false);
+}
+
+void ASurvivorCharacter::OnQuickAction()
+{
+	OnQuickActionPlayed.Broadcast();
+}
+
+void ASurvivorCharacter::OnSprintStarted()
+{
+	OnSprintStartedDelegate.Broadcast();
+}
+
+void ASurvivorCharacter::MoveToKiller(FName KillerSocket)
+{
+	if (UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>())
+	{
+		if (AKillerCharacter* Killer = CharacterObserver->GetKiller())
+		{
+			UDBDBlueprintFunctionLibrary::MoveDBDCharacterToMeshSocket(Killer->GetMesh(), KillerSocket, this);
+		}
+	}
+}
+
+void ASurvivorCharacter::HideItemMesh(bool bHide)
+{
+	if (EquippedItem)
+	{
+		EquippedItem->SetActorHiddenInGame(bHide);
+	}
+}
+
+void ASurvivorCharacter::Anim_DisableMoveStart()
+{
+	MoveEnabled(false);
+	Client_DisableMoveStart();
+}
+
+void ASurvivorCharacter::Anim_DisableMoveEnd()
+{
+	MoveEnabled(true);
+	Client_DisableMoveEnd();
+}
+
+
+void ASurvivorCharacter::SetMoveIgnoreKiller(bool bIgnore)
+{
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (CharacterObserver)
+	{
+		if (bIgnore)
+		{
+			MoveIgnoreActorAdd(CharacterObserver->GetKiller());
+		}
+		else
+		{
+			MoveIgnoreActorRemove(CharacterObserver->GetKiller());
+		}
+	}
+}
+
+void ASurvivorCharacter::SetMoveIgnoreSurvivors(bool bIgnore)
+{
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (CharacterObserver)
+	{
+		for (ASurvivorCharacter* Survivor : CharacterObserver->GetSurvivors())
+		{
+			if (Survivor != this)
+			{
+				if (bIgnore)
+				{
+					MoveIgnoreActorAdd(Survivor);
+				}
+				else
+				{
+					MoveIgnoreActorRemove(Survivor);
+				}
+			}
+		}
+	}
+}
+
+void ASurvivorCharacter::OnRep_IsMoveEnabled(bool OldIsMoveEnabled)
+{
+	if (!bIsMoveEnabled)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+	}
+}
+
+void ASurvivorCharacter::PlayHeartBeatIfKillerNearby()
+{
+	if (UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>())
+	{
+		if (CharacterObserver->GetKiller())
+		{
+			if (CharacterObserver->GetKiller()->GetDistanceTo(this) < 1000.f)
+			{
+				UGameplayStatics::PlaySound2D(GetWorld(), HeartBeatSound, HeartBeatVolume);
+				if (HeartBeatVolume < 1.f)
+				{
+					HeartBeatVolume += 0.25f;
+				}
+				else if (HeartBeatVolume > 1.f)
+				{
+					HeartBeatVolume = 1.f;
+				}
+			}
+			else
+			{
+				if (HeartBeatVolume > 0.f)
+				{
+					HeartBeatVolume -= 0.25f;
+				}
+				else if (HeartBeatVolume < 0.f)
+				{
+					HeartBeatVolume = 0.f;
+				}
+			}
+		}
+	}
+}
+
+
+void ASurvivorCharacter::Client_DisableMoveEnd_Implementation()
+{
+	MoveEnabled(true);
+}
+
+void ASurvivorCharacter::Client_DisableMoveStart_Implementation()
+{
+	MoveEnabled(false);
+}
+
+void ASurvivorCharacter::Server_SendGameplayTagEventToSelf_Implementation(
+	const FGameplayTag& Tag, FGameplayEventData EventData)
+{
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, EventData);
+}
+
+void ASurvivorCharacter::Server_PrintHasTag_Implementation(const FGameplayTag& Tag)
 {
 	if (SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
 	{
@@ -737,13 +1379,13 @@ void ASurvivorCharacter::ServerPrintHasTag_Implementation(const FGameplayTag& Ta
 	}
 }
 
-void ASurvivorCharacter::ServerRemoveTag_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::Server_RemoveTag_Implementation(const FGameplayTag& Tag)
 {
 	SurvivorAbilitySystemComponent->RemoveLooseGameplayTag(Tag);
 	SurvivorAbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
 }
 
-void ASurvivorCharacter::ServerAddUniqueTag_Implementation(const FGameplayTag& Tag)
+void ASurvivorCharacter::Server_AddUniqueTag_Implementation(const FGameplayTag& Tag)
 {
 	if (!SurvivorAbilitySystemComponent->HasMatchingGameplayTag(Tag))
 	{

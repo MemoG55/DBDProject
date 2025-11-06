@@ -21,33 +21,25 @@ enum class EInteractableCollisionType : uint8
 	Capsule,
 };
 
-USTRUCT(BlueprintType)
-struct FInteractMappingContext
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly)
-	UInputMappingContext* MappingContext;
-
-	UPROPERTY(EditDefaultsOnly)
-	int32 priority;
-};
-
 // 상호작용 시작 시(액터인자)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectInteractWithActor, AActor*, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectInteractSourceObject, AActor*, Object);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnObjectInteractInfo, AActor*, SourceObject, AActor*, InteractActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnObjectInteract);
 // 상호작용 중단 시(액터인자=저장된액터제거)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectDisconnectWithActor, AActor*, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectDisconnectSourceObject, AActor*, Object);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnObjectDisconnectInfo, AActor*, SourceObject, AActor*, InteractActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnObjectDisconnect);
 // 상호작용 완료 시(액터인자= 추후 퀘스트나 오라시스템에 사용가능해보임)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectCompleteWithActor, AActor*, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectCompleteSourceObject, AActor*, Object);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnObjectCompleteInfo, AActor*, SourceObject, AActor*, InteractActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnObjectComplete);
 // 손상 적용 시
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectDestroyWithActor, AActor*, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectDestroySourceObject, AActor*, Object);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnObjectDestroyInfo, AActor*, SourceObject, AActor*, InteractActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnObjectDestroy);
 
 /**
@@ -82,6 +74,9 @@ public:
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectInteractSourceObject OnInteractSourceObject;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnObjectInteractInfo OnInteractInfo;
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectInteract OnInteract;
@@ -92,6 +87,9 @@ public:
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectDisconnectSourceObject OnDisconnectSourceObject;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnObjectDisconnectInfo OnDisconnectInfo;
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectDisconnect OnDisconnect;
@@ -102,6 +100,9 @@ public:
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectCompleteSourceObject OnCompleteSourceObject;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnObjectCompleteInfo OnCompleteInfo;
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectComplete OnComplete;
@@ -112,6 +113,9 @@ public:
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectDestroySourceObject OnDestroySourceObject;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnObjectDestroyInfo OnDestroyInfo;
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnObjectDestroy OnDestroy;
@@ -146,9 +150,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "InteractionVariables")
 	FGameplayAttribute TaskAttribute;
 
-	// 상호작용 중인 액터들 배열 (발전기만 쓰므로 추후 발전기쪽으로 이동해야할수도)
+	// 상호작용 중인 액터들 배열
 	UPROPERTY(VisibleDefaultsOnly, Category = "InteractionVariables")
 	TArray<AActor*> InteractedActors;
+	
+public:
+	// 마지막으로 등록된 상호작용액터
+	UPROPERTY(BlueprintReadOnly, Category = "InteractionVariables")
+	TObjectPtr<AActor> CachedCurrentInteractor;
 	
 public:
 	// 현재 오브젝트에 상호작용이 가능한 총 인원
@@ -205,53 +214,69 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void EndInteraction(AActor* Actor);
-protected:
+	
 	// 상호작용 시작했을 때
 	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
 	virtual void StartInteraction(AActor* Actor);
-
-	// 상호작용 중 일어나는 실시간 틱
-	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
-	virtual void TickInteraction(AActor* Actor);
 
 	// 상호작용 끝났을 때
 	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
 	virtual void FinishInteraction(AActor* Actor);
 
+
 	// 상호작용 완료되었을 때
 	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
 	virtual void CompleteInteraction(AActor* Actor);
 	
-	// 상호작용이 취소되었을때
+	// 손상을 가하는 상호작용이 행해졌을때
 	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
-	virtual void CancelInteraction(AActor* Actor);
+	virtual void DestroyInteraction(AActor* Actor);
+
+	// 상호작용 중 일어나는 실시간 틱
+	UFUNCTION(BlueprintCallable, Category = "InteractionFunctions")
+	virtual void TickInteraction(AActor* Actor);
 #pragma endregion	
 
 #pragma region InteractionDelegateBindFunctions:
 protected:
-	// 델리게이트에 의해 발동되는 함수
-	UFUNCTION(Server, Reliable)
+	// 델리게이트에 의해 발동되는 함수(이펙트 같은것만 쓰도록 하기)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnInteracted();
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnInteractedWithActor(AActor* Actor);
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnDisconnected();
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnDisconnectedWithActor(AActor* Actor);
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnCompleted();
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnCompletedWithActor(AActor* Actor);
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnDestroyed();
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	virtual void OnDestroyedWithActor(AActor* Actor);
+#pragma endregion
+
+public:
+#pragma region StatusGetter:
+	// IsActive?
+	UFUNCTION(BlueprintPure)
+	bool IsActivate();
+
+	// IsComplete?
+	UFUNCTION(BlueprintPure)
+	bool IsComplete();
+
+	// IsDestroy?
+	UFUNCTION(BlueprintPure)
+	bool IsDestroy();
 #pragma endregion
 };

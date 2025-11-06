@@ -12,6 +12,7 @@ struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
 class USkillCheckModalWidget;
+class USoundCue;
 /**
  * Skill Check Component
  *
@@ -43,11 +44,10 @@ public:
 	void CancelSkillCheck();
 	void OnEndSkillCheck();
 	void SetupInputActionBinding(UEnhancedInputComponent* EnhancedInputComponent);
+	bool IsSkillCheckStillPlaying();
 
 	UPROPERTY(BlueprintAssignable, Category = "SkillCheck")
 	FSkillCheckResultDelegate SkillCheckEndDelegate;
-	FOnTimelineFloat TimelineUpdateDelegate;
-	FOnTimelineEvent TimelineFinishedDelegate;
 
 protected:
 	void SkillCheckConfirm(const FInputActionValue& InputActionValue);
@@ -61,18 +61,16 @@ private:
 	int32 SkillCheckIMCPriority;
 	UPROPERTY(EditDefaultsOnly, Category = "SkillCheck", meta = (AllowPrivateAccess = "true"))
 	UInputAction* SkillCheckInputAction;
-
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheck", meta = (AllowPrivateAccess = "true"))
+	USoundCue* SkillCheckStartSound;
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheck", meta = (AllowPrivateAccess = "true"))
+	USoundCue* SkillCheckGreatSound;
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheck", meta = (AllowPrivateAccess = "true"))
+	USoundCue* SkillCheckGoodSound;
+	
 	UPROPERTY()
 	USkillCheckModalWidget* SkillCheckWidget;
 
-	UPROPERTY()
-	UTimelineComponent* SkillCheckTimeline;
-	// UFUNCTION()
-	// void TimelineUpdate(float Value);
-	// UFUNCTION()
-	// void TimelineFinished();
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timeline", meta = (AllowPrivateAccess = "true"))
-	UCurveFloat* SkillCheckTimelineCurve;
 	bool bIsSkillCheckDone;
 
 	float CurrentTime = 0;

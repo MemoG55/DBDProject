@@ -4,13 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Containers/Map.h"
+#include "Shared/DBDEnum.h"
 #include "DA_SurvivorASCData.generated.h"
 
+class UGameplayEffect;
 class UGameplayAbility;
-enum class ESurvivorAbilityInputID : uint8;
 /**
  * 
  */
+USTRUCT(BlueprintType)
+struct FInputAbilityInfo
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	ESurvivorAbilityInputID AbilityID = ESurvivorAbilityInputID::None;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UGameplayAbility> AbilityClass = nullptr;
+};
+
 UCLASS()
 class DBDPROJECT_API UDA_SurvivorASCData : public UDataAsset
 {
@@ -19,7 +32,7 @@ class DBDPROJECT_API UDA_SurvivorASCData : public UDataAsset
 public:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "GA")
-	TMap<ESurvivorAbilityInputID, TSubclassOf<UGameplayAbility>> InputAbilities;
+	TArray<FInputAbilityInfo> InputAbilities;
 	UPROPERTY(EditAnywhere)
 	float MaxHookHP = 100;
 	UPROPERTY(EditAnywhere)
@@ -27,13 +40,37 @@ public:
 	UPROPERTY(EditAnywhere)
 	float MaxHealProgress = 100;
 	UPROPERTY(EditAnywhere)
-	float MovementSpeed = 300;
+	float MovementSpeed = 226;
 	UPROPERTY(EditAnywhere)
-	float GeneratorRepairSpeed = 1;
+	float SprintSpeed = 400;
+	UPROPERTY(EditAnywhere)
+	float CrouchSpeed = 113;
+	UPROPERTY(EditAnywhere)
+	float CrawlSpeed = 70;
+	UPROPERTY(EditAnywhere)
+	float InteractSpeed_Generator = 1;
+	UPROPERTY(EditAnywhere)
+	float InteractSpeed_ExitDoor = 1;
+	UPROPERTY(EditAnywhere)
+	float InteractSpeed_Chest = 1;
+	UPROPERTY(EditAnywhere)
+	float InteractSpeed_TotemCleansing= 1;
 	UPROPERTY(EditAnywhere)
 	float HealSpeed = 6.25;
 	UPROPERTY(EditAnywhere)
+	float HookSabotageSpeed = 1;
+	UPROPERTY(EditAnywhere)
+	float RescueSpeed = 1;
+	UPROPERTY(EditAnywhere)
 	float SkillCheckFrequency = 1;
+	UPROPERTY(EditAnywhere)
+	float QuickActionSoundVolume = 1;
+	UPROPERTY(EditAnywhere)
+	float CurrentItemCharge = 0;
+	UPROPERTY(EditAnywhere)
+	float MaxItemCharge = 0;
 	UPROPERTY(EditDefaultsOnly, Category= "DT")
 	UDataTable* SurvivorStatDataTable;
+	UPROPERTY(EditDefaultsOnly, Category= "Survivor Effect")
+	TSubclassOf<UGameplayEffect> ExhaustEffect;
 };

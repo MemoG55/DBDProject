@@ -18,8 +18,8 @@ ATheGameTileSpawnManager::ATheGameTileSpawnManager()
 	EscapeEdgeTileSpawnerIndexArrays.Add({3, 5}, {2, 4});
 	EscapeEdgeTileSpawnerIndexArrays.Add({6, 7}, {0, 1});
 
-	DoubleRoomEdgeTileIndexSelectArrays.Add({0, 0, 1});
-	DoubleRoomEdgeTileIndexSelectArrays.Add({0, 1, 1});
+	//DoubleRoomEdgeTileIndexSelectArrays.Add({0, 0, 1});
+	//DoubleRoomEdgeTileIndexSelectArrays.Add({0, 1, 1});
 }
 
 // Called when the game starts or when spawned
@@ -99,6 +99,8 @@ void ATheGameTileSpawnManager::EdgeTileSpawn()
 	EdgeTileSpawners[EscapeEdgeRandomTileIndex]->SpawnEscapeTile(0);
 	EdgeTileSpawners[EscapeEdgePairIndex]->SpawnEscapeTile(1);
 
+
+	/*
 	//더블 룸 생성
 	//2개의 프리셋 중 랜덤으로 하나가 선택되어 2개가 배치되며, 나머지 1개의 프리셋은 1개만 배치된다
 	//2개의 프리셋에서 3개의 방을 만드는 셈
@@ -124,7 +126,7 @@ void ATheGameTileSpawnManager::EdgeTileSpawn()
 	for (int32 Iterator = 0; Iterator < DoubleRoomEdgeTileIndexSelectArrays[0].Num(); Iterator++)
 	{
 		EdgeTileSpawners[DoubleRoomEdgeTileIndexArray[Iterator]]->SpawnDoubleRoomTile(DoubleRoomEdgeTileIndexSelectArrays[SelectDoubleRoomTile][Iterator]);
-	}
+	}*/
 	
 	//마지막으로 NormalEdge 방 배치
 	int32 EdgeRandomTileIndex = 0;
@@ -134,7 +136,7 @@ void ATheGameTileSpawnManager::EdgeTileSpawn()
 		EdgeRandomTileIndex = FMath::RandRange(0, EdgeTileSpawners.Num()-1);
 		if (EdgeRandomTileIndex == EscapeEdgeRandomTileIndex ||
 			EdgeRandomTileIndex == EscapeEdgePairIndex ||
-			DoubleRoomEdgeTileIndexArray.Contains(EdgeRandomTileIndex) ||
+			//DoubleRoomEdgeTileIndexArray.Contains(EdgeRandomTileIndex) ||
 			EdgeTileIndexArray.Contains(EdgeRandomTileIndex))
 		{
 			Iterator--;

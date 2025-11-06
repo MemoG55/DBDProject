@@ -23,7 +23,7 @@ public:
 	TSoftObjectPtr<UDataTable> SurvivorItemDB;
 	UPROPERTY(EditDefaultsOnly, Category = "SurvivorItemDB")
 	TSoftObjectPtr<UDataTable> ItemAddonDB;
-	
-	
-	
+
+	UPROPERTY(EditDefaultsOnly, Category = "CharacterDB")
+	TSoftObjectPtr<UDataTable> SurvivorCharacterDB;
 };

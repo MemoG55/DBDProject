@@ -12,23 +12,21 @@ bool UObjAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallbac
 
 void UObjAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
 {
+	// if (Data.EvaluatedData.Attribute == GetCurrentTaskAttribute())
+	// {
+	// 	SetCurrentTask(FMath::Clamp(GetCurrentTask(), 0.f, GetMaxTask()));
+	// }
+	//
+	// if (Data.EvaluatedData.Attribute == GetCurrentDamageAttribute())
+	// {
+	// 	SetCurrentDamage(FMath::Clamp(GetCurrentDamage(), 0.f, GetMaxDamage()));
+	// }
+	
 	Super::PostGameplayEffectExecute(Data);
-
-	if (Data.EvaluatedData.Attribute == GetCurrentTaskAttribute())
-	{
-		SetCurrentTask(FMath::Clamp(GetCurrentTask(), 0.f, GetMaxTask()));
-	}
-
-	if (Data.EvaluatedData.Attribute == GetCurrentDamageAttribute())
-	{
-		SetCurrentDamage(FMath::Clamp(GetCurrentDamage(), 0.f, GetMaxDamage()));
-	}
 }
 
 void UObjAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
-	Super::PreAttributeChange(Attribute, NewValue);
-
 	if (Attribute == GetCurrentTaskAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxTask());
@@ -38,6 +36,7 @@ void UObjAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxDamage());
 	}
+	Super::PreAttributeChange(Attribute, NewValue);
 }
 
 void UObjAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
@@ -47,14 +46,19 @@ void UObjAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, 
 
 void UObjAttributeSet::PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const
 {
+	if (Attribute == GetCurrentTaskAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxTask());
+	}
+
+	if (Attribute == GetCurrentDamageAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxDamage());
+	}
+	
 	Super::PreAttributeBaseChange(Attribute, NewValue);
 }
 
-void UObjAttributeSet::PostAttributeBaseChange(const FGameplayAttribute& Attribute, float OldValue,
-	float NewValue) const
-{
-	Super::PostAttributeBaseChange(Attribute, OldValue, NewValue);
-}
 
 void UObjAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {

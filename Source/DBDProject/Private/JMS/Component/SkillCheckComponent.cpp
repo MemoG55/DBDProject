@@ -9,7 +9,9 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/TimelineComponent.h"
 #include "JMS/UI/SkillCheckModalWidget.h"
+#include "Kismet/GameplayStatics.h"
 #include "Shared/DBDDebugHelper.h"
+#include "Sound/SoundCue.h"
 
 
 USkillCheckComponent::USkillCheckComponent()
@@ -43,25 +45,25 @@ void USkillCheckComponent::BeginPlay()
 }
 
 void USkillCheckComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
-	FActorComponentTickFunction* ThisTickFunction)
+                                         FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	CurrentTime += DeltaTime;
-	if (SkillCheckWidget&&CachedDuration>0)
+	if (SkillCheckWidget && CachedDuration > 0)
 	{
-		SkillCheckWidget->SkillCheckNeedleUpdate(CurrentTime/CachedDuration);
+		SkillCheckWidget->SkillCheckNeedleUpdate(CurrentTime / CachedDuration);
 	}
-	if (CurrentTime>CachedDuration)
+	if (CurrentTime > CachedDuration)
 	{
 		OnEndSkillCheck();
 	}
-	Debug::Print(TEXT("JMS13 : CurrentTime : "), CurrentTime, 13);
 }
 
 
 void USkillCheckComponent::TriggerOneShotSkillCheck(float Duration, float GoodWindowStart, float GoodWindowLength,
                                                     float GreatWindowLength)
 {
+	UGameplayStatics::PlaySound2D(GetWorld(), SkillCheckStartSound);
 	bIsSkillCheckDone = false;
 	SetComponentTickEnabled(true);
 	CurrentTime = 0;
@@ -83,12 +85,10 @@ void USkillCheckComponent::TriggerOneShotSkillCheck(float Duration, float GoodWi
 	{
 		return;
 	}
-	// SkillCheckTimeline->SetPlayRate(1.f / Duration);
-	if (SkillCheckWidget)
+	if (SkillCheckWidget && SkillCheckWidget->GetVisibility() == ESlateVisibility::Hidden)
 	{
 		SkillCheckWidget->Activate(Duration, GoodWindowLength, GoodWindowStart, GreatWindowLength);
 	}
-	// SkillCheckTimeline->PlayFromStart();
 }
 
 void USkillCheckComponent::CancelSkillCheck()
@@ -103,7 +103,6 @@ void USkillCheckComponent::CancelSkillCheck()
 			InputSubsystem->RemoveMappingContext(SkillCheckIMC);
 		}
 	}
-	//Debug::Print(TEXT("JMS14 : SkillCheckEnd"), GetOwnerRole(), 14);
 	SetComponentTickEnabled(false);
 	if (SkillCheckWidget)
 	{
@@ -113,36 +112,20 @@ void USkillCheckComponent::CancelSkillCheck()
 
 void USkillCheckComponent::OnEndSkillCheck()
 {
-	// bIsSkillCheckDone = true;
-	// SkillCheckTimeline->Stop();
-	// float TimelinePlaybackPosition = SkillCheckTimeline->GetPlaybackPosition();
-	// float StopTime = TimelinePlaybackPosition * CachedDuration;
-	// if (StopTime > CachedGoodWindowStart && StopTime < CachedGoodWindowStart +
-	// 	CachedGoodWindowLength)
-	// {
-	// 	if (StopTime < CachedGoodWindowStart + CachedGreatWindowLength)
-	// 	{
-	// 		CachedResult = ESkillCheckResult::Great;
-	// 	}
-	// 	else
-	// 	{
-	// 		CachedResult = ESkillCheckResult::Good;
-	// 	}
-	// }
-	// else
-	// {
-	// 	CachedResult = ESkillCheckResult::Bad;
-	// }
+	bIsSkillCheckDone = true;
+
 	if (CurrentTime > CachedGoodWindowStart && CurrentTime < CachedGoodWindowStart +
 		CachedGoodWindowLength)
 	{
 		if (CurrentTime < CachedGoodWindowStart + CachedGreatWindowLength)
 		{
 			CachedResult = ESkillCheckResult::Great;
+			UGameplayStatics::PlaySound2D(GetWorld(), SkillCheckGreatSound);
 		}
 		else
 		{
 			CachedResult = ESkillCheckResult::Good;
+			UGameplayStatics::PlaySound2D(GetWorld(), SkillCheckGoodSound);
 		}
 	}
 	else
@@ -160,7 +143,6 @@ void USkillCheckComponent::OnEndSkillCheck()
 			InputSubsystem->RemoveMappingContext(SkillCheckIMC);
 		}
 	}
-	//Debug::Print(TEXT("JMS14 : SkillCheckEnd"), GetOwnerRole(), 14);
 	SetComponentTickEnabled(false);
 	if (SkillCheckWidget)
 	{
@@ -177,6 +159,11 @@ void USkillCheckComponent::SetupInputActionBinding(UEnhancedInputComponent* Enha
 	}
 }
 
+bool USkillCheckComponent::IsSkillCheckStillPlaying()
+{
+	return !bIsSkillCheckDone;
+}
+
 void USkillCheckComponent::SkillCheckConfirm(const FInputActionValue& InputActionValue)
 {
 	bool bConfirm = InputActionValue.Get<bool>();
@@ -185,33 +172,3 @@ void USkillCheckComponent::SkillCheckConfirm(const FInputActionValue& InputActio
 		OnEndSkillCheck();
 	}
 }
-//
-// void USkillCheckComponent::TimelineUpdate(float Value)
-// {
-// 	if (!bIsSkillCheckDone)
-// 	{
-// 		if (SkillCheckWidget)
-// 		{
-// 			SkillCheckWidget->SkillCheckNeedleUpdate(Value);
-// 		}
-// 		//Debug::Print(TEXT("JMS12 : TimelineUpdate - Value : "), Value, 12);
-// 		//Debug::Print(TEXT("JMS14 : SkillCheckDone is false"), 14);
-// 	}
-// 	else
-// 	{
-// 		//Debug::Print(TEXT("JMS14 : SkillCheckDone is true"), 14);
-// 	}
-// }
-//
-// void USkillCheckComponent::TimelineFinished()
-// {
-// 	if (!bIsSkillCheckDone)
-// 	{
-// 		//Debug::Print(TEXT("JMS14 : SkillCheckDone is false"), 14);
-// 		OnEndSkillCheck();
-// 	}
-// 	else
-// 	{
-// 		//Debug::Print(TEXT("JMS14 : SkillCheckDone is true"), 14);
-// 	}
-// }

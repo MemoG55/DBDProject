@@ -9,36 +9,51 @@
 #include "Shared/Interface/Interactable.h"
 #include "SurvivorItem.generated.h"
 
+struct FGameplayAbilitySpecHandle;
+class UGameplayAbility;
+class ASurvivorCharacter;
+class USurvivorAbilitySystemComponent;
+class UItemAttributeSet;
 class UItemInteractableComponent;
 class UItemAbilitySystemComponent;
 class UItemAddonComponent;
 /**
  * 
  */
+
 UCLASS()
 class DBDPROJECT_API ASurvivorItem : public AActor, public IInteractable, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
+
 public:
 	ASurvivorItem();
+
 protected:
-	
 	UPROPERTY(EditAnywhere, Category="Item", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* Mesh;
 
 	UPROPERTY(EditAnywhere, Category="Item", meta = (AllowPrivateAccess = "true"))
 	FName ItemID;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Interactable")
+	UPROPERTY(VisibleAnywhere, Category = "Interactable")
 	UItemInteractableComponent* ItemInteractableComponent;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Interactable")
+	UPROPERTY(VisibleAnywhere, Category = "Interactable")
 	UItemAbilitySystemComponent* ItemAbilitySystemComponent;
 
+public:
+	UPROPERTY()
+	UItemAttributeSet* ItemAttributeSet;
+
+protected:
 	UPROPERTY(VisibleAnywhere, Category = "Addon")
 	UItemAddonComponent* Addon1;
 	UPROPERTY(VisibleAnywhere, Category = "Addon")
 	UItemAddonComponent* Addon2;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	TArray<TSubclassOf<UGameplayAbility>> UseItemAbilities;
 
 public:
 	// IInteractable
@@ -51,9 +66,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void OnInitialized();
 	virtual void OnEquipItem();
-	virtual void OnItemUsed();
+	virtual void OnStartUsingItem();
+	virtual void OnEndUsingItem();
 	virtual void OnDropItem();
-	
+
 	USkeletalMeshComponent* GetMesh() const;
 	UFUNCTION(BlueprintPure, Category = "Item")
 	FName GetItemID() const;
@@ -65,6 +81,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Item")
 	UItemAddonComponent* GetAddon2() const;
 
+	void AddMaxCharge(float Amount);
+	void AddCurrentCharge(float Amount);
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	USurvivorAbilitySystemComponent* GetOwnerSurvivorAbilitySystemComponent();
+	ASurvivorCharacter* GetOwnerSurvivor();
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	float MaxCharge = 20.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	float CurrentCharge = 20.f;
+private:
+	UPROPERTY()
+	TArray<FGameplayAbilitySpecHandle> GrantedSpecHandles;
 };

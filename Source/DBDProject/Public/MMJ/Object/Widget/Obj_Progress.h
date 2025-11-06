@@ -3,51 +3,36 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
-#include "MMJ/Object/Widget/ObjWidgetBase.h"
+#include "Shared/UI/DBDProgressBarBase.h"
 #include "Obj_Progress.generated.h"
 
+struct FOnAttributeChangeData;
+struct FGameplayAttribute;
+class UImage;
 class UProgressBar;
+class UObjAbilitySystemComponent;
 /**
  * 
  */
 UCLASS()
-class DBDPROJECT_API UObj_Progress : public UObjWidgetBase
+class DBDPROJECT_API UObj_Progress : public UDBDProgressBarBase
 {
 	GENERATED_BODY()
 public:
+	virtual void SetObjectASC(UDBDAbilitySystemComponent* ASC, const FGameplayAttribute& CurrentAttribute, const FGameplayAttribute& MaxAttribute) override;
 
+protected:
 	virtual void NativeConstruct() override;
 
-	UPROPERTY()
-	float ProgressBarWidth;
+	virtual void Update() override;
 
-	UPROPERTY()
-	float ProgressBarHeight;
+	void UpdateRecoverValue(const FOnAttributeChangeData& ChangeData);
 
-	// 현재 진행도 업데이트
-	void UpdateCurrentValue(const FOnAttributeChangeData& ChangeData);
-
-	// 최대 진행도 업데이트
-	void UpdateMaxValue(const FOnAttributeChangeData& ChangeData);
 	
-	float CachedCurrentValue;
-	float CachedMaxValue;
-
-	UFUNCTION()
-	void SetDisplay(bool IsDisplay);
 	
-	// ASC 바인딩
-	UFUNCTION(BlueprintCallable)
-	void SetObjectASC(UObjAbilitySystemComponent* ASC,
-		const FGameplayAttribute& CurrentAttribute, const FGameplayAttribute& MaxAttribute);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(BindWidget))
+	UImage* RecoverProgressMarking;
 
-	void UpdateValue(float CurrentValue, float MaxValue);
 private:
-	UPROPERTY()
-	UObjAbilitySystemComponent* ObjASC;
-
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
-	UProgressBar* ProgressBar;
-	
+	float CachedRecoverValue;
 };

@@ -3,21 +3,21 @@
 
 #include "KMJ/Axe/AxeComponent.h"
 
+#include "Components/BoxComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "KMJ/AbilitySystem/HuntressAttributeSet.h"
 #include "KMJ/Axe/GenericPool.h"
 #include "KMJ/Axe/ProjectileAxe.h"
 #include "KMJ/Character/KillerHuntress.h"
+#include "Net/UnrealNetwork.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 
 // Sets default values for this component's properties
 UAxeComponent::UAxeComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
 
 
@@ -27,35 +27,24 @@ void UAxeComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// 월드에서 AKillerHuntress 객체 하나를 찾기
-	Huntress = Cast<AKillerHuntress>(UGameplayStatics::GetActorOfClass(GetWorld(), AKillerHuntress::StaticClass()));
+	Huntress = Cast<AKillerHuntress>(GetOwner());
 	if (Huntress)
 	{
 		// Huntress가 유효하다면 SkeletalMeshComponent 설정
 		SkeletalMeshComponent = Huntress->GetMesh();
 	}
-	else
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("No AKillerHuntress found in the world"));
-	}
-	
-	// Object Pool 초기화
-	ProjectilePool = GetWorld()->SpawnActor<AGenericPool>();
-	if (Huntress)
-	{
-		const FGameplayAttributeData& AxeAttr = Huntress->HuntressAttributeSet->GetAxeNumber();
-		int AxeNum = AxeAttr.GetCurrentValue();
-		ProjectilePool->InitPool<AProjectileAxe>(AxeNum);
-	}
 	
 }
-
 
 // Called every frame
 void UAxeComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
+	if (bIsChargingThrow)
+	{
+		DrawPredictedPath();
+	}
 }
 
 void UAxeComponent::FireWeapon()
@@ -68,10 +57,9 @@ void UAxeComponent::FireWeapon()
 
 	if (!GEngine || !GEngine->GameViewport)
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("뷰포트 없음"));
 		return;
 	}
-
+	
 	FTransform SocketTransform = SkeletalMeshComponent->GetSocketTransform("AxeSpawn", RTS_World);
 	FVector MuzzleLocation = SocketTransform.GetLocation();
 
@@ -106,24 +94,115 @@ void UAxeComponent::FireWeapon()
 void UAxeComponent::Server_FireWeapon_Implementation(const FVector& MuzzleLocation, const FVector& ShootDirection)
 {
 	if (!Projectile) return;
-
+	bIsChargingThrow = false;
+	
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.Instigator = Cast<APawn>(GetOwner());
 
-	AProjectileAxe* SpawnedProjectile = GetWorld()->SpawnActor<AProjectileAxe>(
-		Projectile,
-		MuzzleLocation,
-		ShootDirection.Rotation(),
-		SpawnParams
-	);
-
-	if (SpawnedProjectile)
+	AProjectileAxe* SpawnedProjectileActor = ProjectilePool->GetObject<AProjectileAxe>(Projectile);
+	if (SpawnedProjectileActor && SpawnedProjectileActor->IsA(Projectile))
 	{
-		const FGameplayAttributeData& AxeAttr = Huntress->HuntressAttributeSet->GetAxeMaxSpeed();
-		float Speed = AxeAttr.GetCurrentValue();
-		SpawnedProjectile->Activate();
-		SpawnedProjectile->ShootInDirection(ShootDirection, Speed);
+		SpawnedProjectileActor->SetActorLocation(MuzzleLocation);
+		SpawnedProjectileActor->SetActorRotation(ShootDirection.Rotation());
+
+		if (SpawnedProjectileActor->ProjectileMovementComponent)
+		{
+			SpawnedProjectileActor->ProjectileMovementComponent->Activate(true);
+			SpawnedProjectileActor->ProjectileMovementComponent->SetUpdatedComponent(SpawnedProjectileActor->CollisionBox);
+			SpawnedProjectileActor->ProjectileMovementComponent->ProjectileGravityScale = 1.0f;
+			const float Speed = Huntress->HuntressAttributeSet->AxeMaxSpeed.GetCurrentValue();
+			SpawnedProjectileActor->ShootInDirection(ShootDirection, Speed);
+		}
+		// Collision 및 기타 활성화
+		SpawnedProjectileActor->Activate();
 	}
 }
 
+void UAxeComponent::InitProjectilePool(float NewAxeNum)
+{
+	if (!ProjectilePool || ProjectilePool->ObjectPool.Num() == 0)
+	{
+		// Object Pool 초기화
+		ProjectilePool = GetWorld()->SpawnActor<AGenericPool>();
+		int AxeNum = NewAxeNum;
+		ProjectilePool->InitPool<AProjectileAxe>(Projectile, AxeNum);
+	}
+}
+
+void UAxeComponent::DrawPredictedPath()
+{
+	if (!Huntress || !SkeletalMeshComponent) return;
+
+	FTransform SocketTransform = SkeletalMeshComponent->GetSocketTransform("AxeSpawn", RTS_World);
+	FVector StartLocation = SocketTransform.GetLocation();
+
+	FVector2D ViewportSize;
+	if (!GEngine || !GEngine->GameViewport) return;
+	GEngine->GameViewport->GetViewportSize(ViewportSize);
+	FVector2D ScreenCenter(ViewportSize.X / 2, ViewportSize.Y / 2);
+
+	FVector WorldLocation, WorldDirection;
+	if (!UGameplayStatics::DeprojectScreenToWorld(
+		UGameplayStatics::GetPlayerController(GetWorld(), 0),
+		ScreenCenter,
+		WorldLocation,
+		WorldDirection))
+	{
+		return;
+	}
+
+	const float Speed = Huntress->HuntressAttributeSet->AxeMaxSpeed.GetCurrentValue();
+	FVector LaunchVelocity = WorldDirection * Speed;
+
+	FPredictProjectilePathParams Params;
+	FPredictProjectilePathResult Result;
+
+	Params.StartLocation = StartLocation;
+	Params.LaunchVelocity = LaunchVelocity;
+	Params.ProjectileRadius = 5.f;
+	Params.MaxSimTime = 3.f;
+	Params.bTraceWithCollision = true;
+	Params.OverrideGravityZ = -980.f;
+	Params.SimFrequency = 15.f;
+	Params.DrawDebugType = EDrawDebugTrace::None;
+	Params.ActorsToIgnore.Add(Huntress);
+
+	UGameplayStatics::PredictProjectilePath(GetWorld(), Params, Result);
+
+	// 흰색으로 라인 표시 (조준 중에만)
+	for (int32 i = 0; i < Result.PathData.Num() - 1; i++)
+	{
+		DrawDebugLine(GetWorld(),
+			Result.PathData[i].Location,
+			Result.PathData[i + 1].Location,
+			FColor::White,
+			false,
+			0.0f,
+			0,
+			2.f);
+	}
+
+	if (Result.HitResult.bBlockingHit)
+	{
+		DrawDebugSphere(GetWorld(), Result.HitResult.Location, 8.f, 12, FColor::White, false, 0.05f);
+	}
+}
+
+
+// 궤적 지우기
+void UAxeComponent::ClearPredictedPath()
+{
+	FlushPersistentDebugLines(GetWorld());
+}
+
+void UAxeComponent::StartChargingThrow()
+{
+	bIsChargingThrow = true;
+}
+
+void UAxeComponent::StopChargingThrow()
+{
+	bIsChargingThrow = false;
+	ClearPredictedPath();
+}

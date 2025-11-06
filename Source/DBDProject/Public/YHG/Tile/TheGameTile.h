@@ -27,9 +27,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
-	UPROPERTY()
+	UPROPERTY(VisibleDefaultsOnly)
 	TObjectPtr<USceneComponent> Tile;
 
-	UPROPERTY()
-	TObjectPtr<USceneComponent> LightPreset;
+	UPROPERTY(VisibleDefaultsOnly)
+	TObjectPtr<USceneComponent> Props;
 };

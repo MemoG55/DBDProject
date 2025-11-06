@@ -72,7 +72,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGEs")
 	TArray<FObjGEStruct> SkillCheckSuccessEffects;
 
+	// 스킬체크 이벤트 Success시 적용될 Cue의 태그
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGC")
+	FGameplayTag SkillCheckSuccessGCTag;
+
 	// 스킬체크 이벤트 Fail시 적용될 이펙트
 	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGEs")
 	TArray<FObjGEStruct> SkillCheckFailureEffects;
+
+	// 스킬체크 이벤트 Fail시 적용될 Cue의 태그
+	UPROPERTY(EditDefaultsOnly, Category = "SkillCheckResultGC")
+	FGameplayTag SkillCheckFailureGCTag;
 };

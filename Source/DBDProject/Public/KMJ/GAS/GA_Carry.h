@@ -18,7 +18,7 @@ class DBDPROJECT_API UGA_Carry : public UKillerGameplayAbility
 {
 	GENERATED_BODY()
 	
-private:
+public:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* FPVStartMontage;
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
@@ -26,20 +26,13 @@ private:
 	
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Character")
-	AKillerCharacter* Killer = nullptr;
-	UPROPERTY(BlueprintReadOnly, Category = "Character")
 	ASurvivorCharacter* InteractableSurvivorCharacter = nullptr;
 
 public:
 	UGA_Carry();
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-
-	UFUNCTION(BlueprintCallable, Category = "Ability")
-	AKillerCharacter* GetKillerCharacter(){return Killer;};
-	UFUNCTION(BlueprintCallable, Category = "Ability")
-	void SetKillerCharacter(AActor* InputKillerCharacter){ Killer = Cast<AKillerCharacter>(InputKillerCharacter);};
-
+	
 	UFUNCTION(BlueprintPure, Category = "Ability")
 	ASurvivorCharacter* GetInteractableSurvivorCharacter()
 	{
@@ -47,6 +40,6 @@ public:
 		return InteractableSurvivorCharacter;
 	};
 
-	UFUNCTION(BlueprintCallable, Category = "Ability")
-	UAnimMontage* GetAnimMontage(int num);
+protected:
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 };

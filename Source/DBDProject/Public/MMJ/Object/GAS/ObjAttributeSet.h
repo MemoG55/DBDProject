@@ -36,21 +36,18 @@ private:
 	// Attribute값이 변경된 후 호출(NewValue는 변경된 값을 복사한 값)
 	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
-	// Attribute Base값이 변경되기 직전 호출(최종 변경값 지정 가능)
 	virtual void PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const override;
-
-	// Attribute Base값이 변경된 후 호출(NewValue는 변경된 값을 복사한 값)
-	virtual void PostAttributeBaseChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) const override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 최대 진행도
 	UPROPERTY(ReplicatedUsing = OnRep_MaxTask)
 	FGameplayAttributeData MaxTask;
 
-	// 현재 진행도
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentTask)
 	FGameplayAttributeData CurrentTask;
+
+	UPROPERTY(ReplicatedUsing = OnRep_RecoverTask)
+	FGameplayAttributeData RecoverTask;
 
 	// 손상도(갈고리 등 파괴되었다가 수리되기 위한 타이머 용도로)
 	UPROPERTY(ReplicatedUsing = OnRep_MaxDamage)
@@ -58,10 +55,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentDamage);
 	FGameplayAttributeData CurrentDamage;
-
-	// 손상도 회복, 손상상태 제거를 위한 CurrentTask 목표수치
-	UPROPERTY(ReplicatedUsing = OnRep_RecoverTask)
-	FGameplayAttributeData RecoverTask;
 
 	UFUNCTION()
 	void OnRep_MaxTask(const FGameplayAttributeData& OldValue);

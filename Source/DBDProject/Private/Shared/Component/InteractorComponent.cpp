@@ -8,13 +8,19 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
+#include "JMS/Character/SurvivorCharacter.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "KMJ/Character/KillerCharacter.h"
+#include "MMJ/Object/Component/IC_Hook.h"
+#include "MMJ/Object/Interactable/Obj_Hook.h"
 #include "Net/UnrealNetwork.h"
 #include "Shared/DBDBlueprintFunctionLibrary.h"
 #include "Shared/DBDDebugHelper.h"
 #include "Shared/Component/InteractableComponent.h"
 #include "Shared/Interface/Interactable.h"
 #include "Shared/Interface/Interactor.h"
+#include "MotionWarping/Public/RootMotionModifier.h"
+#include "Shared/Component/DBDMotionWarpingComponent.h"
 
 
 // Sets default values for this component's properties
@@ -31,6 +37,7 @@ UInteractorComponent::UInteractorComponent()
 	bIsSearchingEnabled = true;
 	SearchInterval = 0.1f;
 	SearchRadius = 150.f;
+	SetIsReplicatedByDefault(true);
 }
 
 
@@ -65,7 +72,7 @@ void UInteractorComponent::CheckNearbyInteractable()
 		ECollisionChannel::ECC_GameTraceChannel2);
 	UKismetSystemLibrary::SphereTraceMulti(GetWorld(), GetOwner()->GetActorLocation(), GetOwner()->GetActorLocation(),
 	                                       SearchRadius,
-	                                       TraceTypeQuery, false, ActorsToIgnore, EDrawDebugTrace::Type::ForDuration,
+	                                       TraceTypeQuery, false, ActorsToIgnore, EDrawDebugTrace::Type::None,
 	                                       HitResults, true, FLinearColor::Red, FLinearColor::Green, 0.1);
 
 	AActor* ClosestActor = nullptr;
@@ -99,12 +106,32 @@ void UInteractorComponent::CheckNearbyInteractable()
 
 void UInteractorComponent::RegisterOverlappedInteractable(IInteractable* Interactable)
 {
+	// JMS: RPC로 전달
+	if (CurrentInteractable != Interactable)
+	{
+		Client_CurrentInteractableChanged(Cast<AActor>(Interactable));
+	}
+		
 	CurrentInteractable = Interactable;
 	// JMS: 서버에서만 실행되므로 단순화했습니다.
 	AActor* NewInteractableActor = CurrentInteractable
 		                               ? CurrentInteractable->GetInteractableComponent()->GetOwner()
 		                               : nullptr;
 	CurrentInteractableActor = NewInteractableActor;
+
+
+	if (CurrentInteractable)
+	{
+		if (ADBDCharacter* OwnerCharacter = Cast<ADBDCharacter>(GetOwner()))
+		{
+			if (UObject* CurrentInteractableObject = Cast<UObject>(CurrentInteractable))
+			{
+				UDBDBlueprintFunctionLibrary::AddOrUpdateMotionWarpingTarget(
+					IInteractable::Execute_GetMotionWarpingTargets(CurrentInteractableObject),
+					OwnerCharacter->GetDBDMotionWarpingComponent());
+			}
+		}
+	}
 
 	UpdateTag();
 }
@@ -115,6 +142,7 @@ void UInteractorComponent::UnRegisterOverlappedInteractable(IInteractable* Inter
 	if (CurrentInteractable == Interactable)
 	{
 		CurrentInteractable = nullptr;
+		Client_CurrentInteractableChanged(Cast<AActor>(Interactable));
 		UpdateTag();
 	}
 }
@@ -127,8 +155,8 @@ void UInteractorComponent::InteractWithCurrentInteractable()
 		if (CurrentInteractable->GetInteractableComponent()->CanInteraction(GetOwner()))
 		{
 			// Getter를 호출해서 컴포넌트를 가져옴
-			// Interact delegate Broadcast : MMJ (OnInteractWithActor 델리게이트 호출에서 일반 함수 호출로 변경)
-			CurrentInteractable->GetInteractableComponent()->BeginInteraction(GetOwner());
+			// MMJ (BeginInteraction에서 StartInteraction으로 간소화)
+			CurrentInteractable->GetInteractableComponent()->StartInteraction(GetOwner());
 		}
 	}
 	SearchingEnabled(false);
@@ -139,8 +167,8 @@ void UInteractorComponent::EndInteraction()
 	//현재 Interactable의 Interaction마무리 delegate broadcast
 	if (CurrentInteractable)
 	{
-		//  MMJ (OnDisconnectWithActor 델리게이트 호출에서 일반 함수 호출로 변경)
-		CurrentInteractable->GetInteractableComponent()->EndInteraction(GetOwner());
+		//  MMJ (EndInteraction에서 FinishInteraction으로 간소화)
+		CurrentInteractable->GetInteractableComponent()->FinishInteraction(GetOwner());
 	}
 	SearchingEnabled(true);
 }
@@ -165,6 +193,11 @@ UAbilitySystemComponent* UInteractorComponent::GetOwnerAbilitySystemComponent()
 	return ASI->GetAbilitySystemComponent();
 }
 
+void UInteractorComponent::Client_CurrentInteractableChanged_Implementation(AActor* NewInteractable)
+{
+	CurrentInteractableActor = NewInteractable;
+}
+
 void UInteractorComponent::UpdateTag()
 {
 	UDBDBlueprintFunctionLibrary::RemoveAllSubTags(FName("Interactable"), GetOwnerAbilitySystemComponent());
@@ -176,15 +209,15 @@ void UInteractorComponent::UpdateTag()
 			CurrentInteractable->GetInteractableComponent()->InteractableTag);
 	}
 }
-
-void UInteractorComponent::OnRep_CurrentInteractableActor()
-{
-}
+//
+// void UInteractorComponent::OnRep_CurrentInteractableActor()
+// {
+// }
 
 void UInteractorComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION_NOTIFY(UInteractorComponent, CurrentInteractableActor, COND_None, REPNOTIFY_Always);
+	// DOREPLIFETIME_CONDITION_NOTIFY(UInteractorComponent, CurrentInteractableActor, COND_None, REPNOTIFY_Always);
 }
 
 

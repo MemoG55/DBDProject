@@ -39,7 +39,7 @@ private:
 	
 	TMap<TArray<int32>, TArray<int32>> EscapeEdgeTileSpawnerIndexArrays;
 
-	TArray<TArray<int32>> DoubleRoomEdgeTileIndexSelectArrays;
+	//TArray<TArray<int32>> DoubleRoomEdgeTileIndexSelectArrays;
 	
 	UPROPERTY(EditInstanceOnly, Category = "SpawnTile")
 	TArray<ATheGameMidTileSpawner*> MidTileSpawners;

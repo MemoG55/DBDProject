@@ -4,27 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "MMJ/Object/Interactable/DBDObject.h"
+#include "Shared/Interface/Combinable.h"
 #include "Obj_ExitDoor.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class DBDPROJECT_API AObj_ExitDoor : public ADBDObject
+class DBDPROJECT_API AObj_ExitDoor : public ADBDObject, public ICombinable
 {
 	GENERATED_BODY()
 
 public:
 	AObj_ExitDoor(const FObjectInitializer& ObjectInitializer);
 
-	virtual void BeginPlay() override;
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	// UChildActorComponent* ChildActor;
+	virtual void CreateCombinedActor() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<ADBDObject> ExitZone;
-
-	UFUNCTION()
-	void CreateExitZone();
+	virtual AActor* GetCombinedActor() const override;
 	
+protected:
+	virtual void BeginPlay() override;
 };

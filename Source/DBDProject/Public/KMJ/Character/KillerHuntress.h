@@ -7,6 +7,7 @@
 #include "KMJ/Character/KillerCharacter.h"
 #include "KillerHuntress.generated.h"
 
+class UAxeComponent;
 struct FInputActionValue;
 class UHuntressAttributeSet;
 
@@ -27,20 +28,15 @@ public:
 	virtual void ClientSideInit() override;
 	virtual void BeginPlay() override;
 
-public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAxeComponent* AxeComponent;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem", meta = (AllowPrivateAccess = "true"))
 	UHuntressAttributeSet* HuntressAttributeSet;
 
-	// Bind With GA Event
-	//void OnKillerSkillPressed();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Weapon")
+	UStaticMeshComponent* LeftAxe;
 
-	/*
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input")
-	UInputAction* IA_Killer_Skill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Input")
-	UInputAction* IA_Killer_Attack;
-	*/
 protected:
 	UPROPERTY(ReplicatedUsing=OnRep_WalkSpeedChanged)
 	float ReplicatedWalkSpeed;
@@ -48,8 +44,13 @@ protected:
 	UFUNCTION()
 	void OnRep_WalkSpeedChanged();
 
+public:
 	UFUNCTION(BlueprintCallable)
 	void OnWalkingSpeedChanged(float NewWalkingSpeed);
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SetLeftAxeVisibility(bool bVisible);
+	
 };

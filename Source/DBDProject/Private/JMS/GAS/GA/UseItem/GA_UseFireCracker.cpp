@@ -33,8 +33,8 @@ void UGA_UseFireCracker::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	if (K2_HasAuthority())
 	{
-		GetSurvivorCharacterFromActorInfo()->UseEquippedItem();
-		GetSurvivorCharacterFromActorInfo()->DropItem();
+		GetSurvivorCharacterFromActorInfo()->StartUsingItem();
+		GetSurvivorCharacterFromActorInfo()->DropItem(nullptr);
 	}
 
 	K2_EndAbility();

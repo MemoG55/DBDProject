@@ -26,6 +26,6 @@ void UGA_Shared_Blind::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	if (K2_HasAuthority())
 	{
-		Debug::Print(TEXT("JMS13: Blind Activated"), 13);
+		//Debug::Print(TEXT("JMS13: Blind Activated"), 13);
 	}
 }

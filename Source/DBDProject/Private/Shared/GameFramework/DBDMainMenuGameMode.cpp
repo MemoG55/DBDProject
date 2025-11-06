@@ -4,5 +4,7 @@
 #include "Shared/GameFramework/DBDMainMenuGameMode.h"
 
 
-
-
+ADBDMainMenuGameMode::ADBDMainMenuGameMode()
+{
+	bUseSeamlessTravel = true;
+}

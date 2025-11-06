@@ -140,7 +140,7 @@ void ATestSurvivor::Server_Disconnect_Implementation(ADBDObject* Object)
 
 void ATestSurvivor::Server_Interact_Implementation(ADBDObject* Object)
 {
-			Debug::Print(TEXT("MMJ : InteractTry"), 12);
+			//Debug::Print(TEXT("MMJ : InteractTry"), 12);
 	if (IsValid(Object))
 	{
 		if (UAbilitySystemComponent* ASC = Object->GetAbilitySystemComponent())

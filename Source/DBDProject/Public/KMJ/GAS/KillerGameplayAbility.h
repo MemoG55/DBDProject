@@ -30,4 +30,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="GA")
 	AKillerCharacter* GetKillerCharacterFromActorInfo() const;
+
+	UPROPERTY(BlueprintReadOnly)
+	AKillerCharacter* Killer;
 };

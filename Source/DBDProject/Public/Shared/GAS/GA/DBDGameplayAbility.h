@@ -6,6 +6,8 @@
 #include "Abilities/GameplayAbility.h"
 #include "DBDGameplayAbility.generated.h"
 
+class ADBDCharacter;
+class UDBDWidgetComponent;
 /**
  * 
  */
@@ -13,5 +15,8 @@ UCLASS()
 class DBDPROJECT_API UDBDGameplayAbility : public UGameplayAbility
 {
 	GENERATED_BODY()
-	
+protected:
+	UDBDWidgetComponent* GetDBDWidgetComponentFromActorInfo() const;
+	ADBDCharacter* GetDBDCharacterFromActorInfo() const;
+
 };

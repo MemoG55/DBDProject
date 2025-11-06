@@ -4,6 +4,7 @@
 #include "Shared/Animation/DBDAnimInstance.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Misc/DataValidation.h"
 #include "Shared/GAS/DBDAbilitySystemComponent.h"
 
@@ -62,5 +63,8 @@ void UDBDAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
 	
-	
+	if (ACharacter* OwnerCharacter = Cast<ACharacter>(TryGetPawnOwner()))
+	{
+		CurrentMovementMode = OwnerCharacter->GetCharacterMovement()->MovementMode;
+	}
 }

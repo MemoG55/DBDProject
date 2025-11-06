@@ -16,8 +16,9 @@ ADBDSpectatorCam::ADBDSpectatorCam()
 	SetRootComponent(SpringArmComponent);
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent, USpringArmComponent::SocketName);
-	// SpringArmComponent->TargetArmLength = 1000.0f;
-	// SpringArmComponent->TargetOffset = FVector(0.0f, 0.0f, 100.0f);
+	SpringArmComponent->TargetArmLength = 300.0f;
+	SpringArmComponent->TargetOffset = FVector(0.0f, 0.0f, 0.0f);
+	//SpringArmComponent->SetWorldRotation(FRotator(0.f, 180.f, 0.f));
 }
 
 // Called when the game starts or when spawned

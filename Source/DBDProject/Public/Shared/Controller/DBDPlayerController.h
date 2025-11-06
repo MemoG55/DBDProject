@@ -6,8 +6,10 @@
 #include "GameFramework/PlayerController.h"
 #include "DBDPlayerController.generated.h"
 
+class UDBDAbilitySystemComponent;
 class ADBDSpectatorCam;
 class UCommonActivatableWidget;
+class USoundCue;
 /**
  * 
  */
@@ -15,19 +17,37 @@ UCLASS()
 class DBDPROJECT_API ADBDPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+public:
+	ADBDPlayerController();
 	virtual void BeginPlay() override;
 private:
 	UPROPERTY()
 	ADBDSpectatorCam* SpectatorCam;
+	UPROPERTY()
+	float CurrentYaw;
 public:
 	void EnterSpectatorCam();
+	void ExitSpectatorCam();
+	UPROPERTY()
+	bool bIsSetSpectatorCam = false;
 
-	void CustomCreateWidget();
+	UFUNCTION(Client, Reliable)
+	void DisplayProgressUI(UDBDAbilitySystemComponent* ASC);
 protected:
-	// Server Only
-	//virtual void OnPossess(APawn* InPawn) override;
-public:
 
-	// Client Only
-	//virtual void AcknowledgePossession(class APawn* P) override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUserWidget> LoadingWidgetClass;
+	UUserWidget* LoadingWidget;
+	UPROPERTY(EditDefaultsOnly)
+	USoundCue* StartMusicCue;
+	UPROPERTY()
+	UAudioComponent* StartMusicAudioComponent;
+public:
+	virtual void AcknowledgePossession(class APawn* P) override;
+	void StartAfterWait();
+	
+
 };

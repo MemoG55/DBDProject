@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "JMS/Item/SurvivorItem.h"
 #include "ItemAddonComponent.generated.h"
 
 
+class UGameplayEffect;
 class ASurvivorItem;
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -25,28 +27,33 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ItemAddon")
 	FName AddonID;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ItemAddon")
+	TArray<TSubclassOf<UGameplayEffect>> AddonEffects;
+
 public:
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
-	                           FActorComponentTickFunction* ThisTickFunction) override;
 	UFUNCTION(BlueprintNativeEvent, Category = "ItemAddon")
-	void OnInitialized();
+	void OnEquip();
 
 	UFUNCTION(BlueprintCallable, Category = "ItemAddon")
 	FName GetAddonID() const;
 
+	UFUNCTION(BlueprintNativeEvent, Category = "ItemAddon")
+	void OnUnEquip();
+
+	UFUNCTION(BlueprintNativeEvent, Category = "ItemAddon")
+	void OnInitialized();
+
 protected:
-	// template <class T>
-	// T* GetOwningItem() const
-	// {
-	// 	static_assert(TPointerIsConvertibleFromTo<T, ASurvivorItem>::Value,
-	// 				  "'T' Template Parameter must be derived from ASurvivorItem");
-	// 	return CastChecked<T>(GetOwner());
-	// }
-	//
-	// ASurvivorItem* GetOwningItem() const
-	// {
-	// 	return GetOwningItem<ASurvivorItem>();
-	// }
-	// 	
+	template <class T>
+	T* GetOwningItem() const
+	{
+		static_assert(TPointerIsConvertibleFromTo<T, ASurvivorItem>::Value,
+					  "'T' Template Parameter must be derived from ASurvivorItem");
+		return CastChecked<T>(GetOwner());
+	}
+	
+	ASurvivorItem* GetOwningItem() const
+	{
+		return GetOwningItem<ASurvivorItem>();
+	}
 };

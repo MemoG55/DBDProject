@@ -38,6 +38,8 @@ protected:
 	// These should be used instead of manually querying for the gameplay tags.
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
 	FGameplayTagBlueprintPropertyMap GameplayTagPropertyMap;
+	UPROPERTY(VisibleDefaultsOnly,BlueprintReadOnly, Category = "Movement")
+	TEnumAsByte<EMovementMode> CurrentMovementMode;
 private:
 	UPROPERTY()
 	class ACharacter* CurrentOwnerCharacter;

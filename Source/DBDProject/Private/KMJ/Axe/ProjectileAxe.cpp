@@ -8,6 +8,7 @@
 #include "JMS/Character/SurvivorCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "KMJ/Character/KillerHuntress.h"
+#include "Shared/DBDDebugHelper.h"
 
 
 // Sets default values
@@ -42,7 +43,8 @@ AProjectileAxe::AProjectileAxe()
 	ProjectileMovementComponent->bRotationFollowsVelocity = true;
 	ProjectileMovementComponent->bShouldBounce = true;
 	ProjectileMovementComponent->Bounciness = 0.3f;
-	ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
+	ProjectileMovementComponent->ProjectileGravityScale = 1.0f;
+	ProjectileMovementComponent->bRotationFollowsVelocity = true;
 
 	ProjectileMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMeshComponent"));
 	ProjectileMeshComponent->SetupAttachment(RootComponent);
@@ -89,7 +91,8 @@ void AProjectileAxe::Deactivate()
 {
 	Super::Deactivate();
 	ProjectileMovementComponent->SetActive(false);
-	CollisionBox->SetNotifyRigidBodyCollision(false); 
+	CollisionBox->SetNotifyRigidBodyCollision(false);
+	ProjectileMeshComponent->SetVisibility(false);
 }
 
 void AProjectileAxe::Initialize(const FVector& Location, const FVector& ShootDirection, const float Speed)
@@ -105,6 +108,7 @@ void AProjectileAxe::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 	{
 		return;
 	}
+	ProjectileMovementComponent->StopMovementImmediately();
 	// 충돌이 발생하면 Deactivate() 호출
 	//UE_LOG(LogTemp, Error, TEXT("On Overlapped Axe"));
 	FString ActorClassName = OtherActor->GetName();
@@ -127,10 +131,11 @@ void AProjectileAxe::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 	}
 	//투척도끼 비활성화
 	//UE_LOG(LogTemp, Display, TEXT("Axe Deactivate"));
+	//Debug::Print(TEXT("Throwing Axe Deactivate"), 325);
 	Deactivate();
 }
 
-void AProjectileAxe::ShootInDirection(const FVector& ShootDirection, const float Speed) const
+void AProjectileAxe::ShootInDirection(const FVector& ShootDirection, const float Speed)
 {
 	ProjectileMovementComponent->InitialSpeed = Speed;
 	ProjectileMovementComponent->MaxSpeed = Speed;

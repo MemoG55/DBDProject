@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{BDC35230-4EC1-065E-E3DE-4997CBD8F00B}",
+	"EngineAssociation": "{51964BA5-4437-95EB-CACB-40A86754AF80}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -14,7 +14,8 @@
 				"GameplayAbilities",
 				"CoreUObject",
 				"CommonUI",
-				"UMG"
+				"UMG",
+				"MotionWarping"
 			]
 		}
 	],
@@ -28,7 +29,7 @@
 		},
 		{
 			"Name": "OnlineSubsystemSteam",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "AdvancedSessions",
@@ -36,7 +37,7 @@
 		},
 		{
 			"Name": "AdvancedSteamSessions",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "SkeletalMeshModelingTools",

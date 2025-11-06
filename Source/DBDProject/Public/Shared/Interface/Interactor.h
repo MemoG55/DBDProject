@@ -11,7 +11,7 @@
 class IInteractable;
 class UInteractorComponent;
 // This class does not need to be modified.
-UINTERFACE(MinimalAPI)
+UINTERFACE(MinimalAPI, Blueprintable)
 class UInteractor : public UInterface
 {
 	GENERATED_BODY()

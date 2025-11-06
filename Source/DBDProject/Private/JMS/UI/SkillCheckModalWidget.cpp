@@ -64,8 +64,6 @@ void USkillCheckModalWidget::Activate(float InDuration, float InGoodWindowLength
 	{
 		OwnerSkillCheckComponent->SkillCheckEndDelegate.AddDynamic(
 			this, &USkillCheckModalWidget::PlayAnimationAndDeactivate);
-		OwnerSkillCheckComponent->TimelineUpdateDelegate.BindDynamic(
-			this, &USkillCheckModalWidget::SkillCheckNeedleUpdate);
 	}
 
 	if (SuccessRing)
@@ -103,10 +101,6 @@ void USkillCheckModalWidget::Deactivate()
 	{
 		OwnerSkillCheckComponent->SkillCheckEndDelegate.RemoveDynamic(
 			this, &USkillCheckModalWidget::PlayAnimationAndDeactivate);
-	}
-	if (OwnerSkillCheckComponent->TimelineUpdateDelegate.IsBound())
-	{
-		OwnerSkillCheckComponent->TimelineUpdateDelegate.Clear();
 	}
 }
 

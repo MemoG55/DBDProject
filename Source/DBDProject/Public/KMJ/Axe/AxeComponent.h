@@ -6,8 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "AxeComponent.generated.h"
 
+class APoolableActor;
 class AProjectileAxe;
 class AKillerHuntress;
+class UHuntressAttributeSet;
 class AGenericPool;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -37,10 +39,27 @@ public:
 	void FireWeapon();
 	UFUNCTION(Server, Reliable)
 	void Server_FireWeapon(const FVector& MuzzleLocation, const FVector& ShootDirection);
+
+	UFUNCTION()
+	void InitProjectilePool(float NewAxeNum);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Axe")
 	TSubclassOf<AProjectileAxe> Projectile;
-private:
+	UPROPERTY()
 	AGenericPool* ProjectilePool;
+
+	UPROPERTY()
+	bool bIsChargingThrow;
 	
+	UFUNCTION(BlueprintCallable, Category = "Axe")
+	void DrawPredictedPath();
+
+	UFUNCTION(BlueprintCallable, Category = "Axe")
+	void ClearPredictedPath();
+
+	UFUNCTION(BlueprintCallable)
+	void StartChargingThrow();
+
+	UFUNCTION(BlueprintCallable)
+	void StopChargingThrow();
 };

@@ -18,28 +18,34 @@ class DBDPROJECT_API UDBDObjectAnimInstance : public UDBDAnimInstance
 
 public:
 	UDBDObjectAnimInstance();
+	
 	virtual void NativeInitializeAnimation() override;
 
-	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 	virtual void NativeBeginPlay() override;
-
-	UFUNCTION()
-	void UpdateProgress(float NewValue);
-
-	UFUNCTION(BlueprintCallable)
-	void SetSlotActive(bool Activation);
 private:
 	
 protected:
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Owner")
 	ADBDObject* OwningObject;
 
-	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe))
-	bool DoesObjHasTag(FGameplayTag Tag) const;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Owner")
+	UObjAbilitySystemComponent* OwningObjectASC;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Owner")
+	class UICObject* OwningObjectIC;
+
+	// 현재 진행도
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float CurrentTask;
+
+	// 총 진행도
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float MaxTask;
 
 public:
-	// 현재 진행도
+	// 진행률
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	float InteractionProgress;
 
@@ -47,6 +53,4 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	int32 InteractorsCount;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Slot")
-	TMap<FName, UAnimSequence*> AnimBySlot;
 };

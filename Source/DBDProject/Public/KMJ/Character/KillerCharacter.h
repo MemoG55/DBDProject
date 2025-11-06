@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Shared/Character/DBDCharacter.h"
-#include "Shared/Interface/Interactable.h"
-#include "Shared/Interface/Interactor.h"
 #include "KillerCharacter.generated.h"
 
 class UKillerInteractableComponent;
@@ -19,19 +18,16 @@ class UKillerAttributeSet;
  * 
  */
 UCLASS()
-class DBDPROJECT_API AKillerCharacter : public ADBDCharacter, public IInteractable, public IInteractor
+class DBDPROJECT_API AKillerCharacter : public ADBDCharacter
 {
 	GENERATED_BODY()
 public:
 	AKillerCharacter();
 	
 	// IInteractable
-	UFUNCTION(BlueprintCallable, Category = "KillerCharacter")
 	virtual UInteractableComponent* GetInteractableComponent() const override;
+
 	// IInteractor
-	UFUNCTION(BlueprintCallable, Category = "KillerCharacter")
-	virtual UInteractorComponent* GetInteractorComponent() const override;
-	UFUNCTION(BlueprintCallable, Category = "KillerCharacter")
 	virtual EPlayerRole GetInteractorRole() const override;
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
@@ -40,9 +36,9 @@ public:
 protected:
 	UPROPERTY(VisibleDefaultsOnly, Category="GAS")
 	class UKillerAbilitySystemComponent* KillerAbilitySystemComponent;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="View")
-	class USpringArmComponent* CameraBoom;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="View")
+	class USpringArmComponent* CameraArm;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="View")
 	class UCameraComponent* FollowCam;
@@ -53,8 +49,6 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, Category="InteractableComponent")
 	UKillerInteractableComponent* KillerInteractableComponent;
 	
-	UPROPERTY(VisibleDefaultsOnly, Category="InteractorComponent")
-	UInteractorComponent* InteractorComponent;
 
 	//살인마 시점의 살인마 애니메이션
 	UPROPERTY(EditDefaultsOnly, Category="Killer_AnimBP")
@@ -68,6 +62,9 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_CarriedSurvivorCharacter)
 	ASurvivorCharacter* CarriedSurvivorCharacter = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Weapon")
+	UStaticMeshComponent* RightWeapon;
+
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem", meta = (AllowPrivateAccess = "true"))
 	UKillerAttributeSet* KillerAttributeSet;
@@ -79,6 +76,8 @@ public:
 	bool IsLocallyControlledByPlayer() const;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PawnClientRestart() override;
+	void InitItemHUD();
+	//virtual void AddControllerPitchInput(float Val) override;
 
 	UFUNCTION(BlueprintCallable, Category="Killer")
 	ASurvivorCharacter* GetCarriedSurvivorCharacter(){return CarriedSurvivorCharacter;};
@@ -97,8 +96,24 @@ public:
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetCarriedSurvivorCharacter(ASurvivorCharacter* NewSurvivorCharacter);
+
+	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_KillerAimHorizontal)
+	float KillerAim_Horizontal;
 	
-	void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION()
+	void OnRep_KillerAimHorizontal();
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetKillerAimHorizontal(float NewPitch);
+	
+	UPROPERTY(BlueprintReadWrite, Replicated)
+	bool IsCarrying;
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetKiller_IsCarrying(bool bIsCarrying);
+
 private:
 	void AbilityInput(const FInputActionValue& InputActionValue, EKillerAbilityInputID InputID);
 	void LookAction(const FInputActionValue& InputActionValue);
@@ -133,4 +148,7 @@ public:
 	UFUNCTION()
 	bool GetIsLeftMoving() const;
 
+	//YHG : HookAura
+private:
+	void OnAura_Hook(FGameplayTag Tag, int32 NewCount) const;
 };

@@ -3,11 +3,15 @@
 
 #include "MMJ/Object/Interactable/Obj_ExitDoor.h"
 
-#include "MMJ/Object/Component/ICExitDoor.h"
+#include "Components/WidgetComponent.h"
+#include "MMJ/Object/Component/IC_ExitDoor.h"
 #include "MMJ/Object/Interactable/Obj_Exit.h"
+#include "Shared/DBDEnum.h"
+#include "Shared/GameFramework/DBDPlayerState.h"
+#include "Shared/Subsystem/DBDObjectObserver.h"
 
 AObj_ExitDoor::AObj_ExitDoor(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UICExitDoor>(ADBDObject::InteractableComponentName))
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UIC_ExitDoor>(ADBDObject::InteractableComponentName))
 {
 }
 
@@ -15,20 +19,49 @@ void AObj_ExitDoor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CreateExitZone();
+	if (UDBDObjectObserver* ObjectObserver = GetWorld()->GetSubsystem<UDBDObjectObserver>())
+	{
+		ObjectObserver->RegisterExitDoor(this);
+	}
+	if (WidgetComponent)
+	{
+		WidgetComponent->SetVisibility(false);
+	}
+	CreateCombinedActor();
+
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController<APlayerController>())
+	{
+		if (ADBDPlayerState* PS = PC->GetPlayerState<ADBDPlayerState>())
+		{
+			if (PS->GetPlayerRole() == EPlayerRole::Killer)
+			{
+				SetCustomDepth(1);
+			}
+			else
+			{
+				SetCustomDepth(2);
+			}
+		}
+	}
 }
 
-void AObj_ExitDoor::CreateExitZone()
-{	
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = this;
-	FTransform SpawnTransform;
-	SpawnTransform.SetLocation(FVector(0, 0, 0));
-		
-	ADBDObject* Exit = GetWorld()->SpawnActor<ADBDObject>(ExitZone, SpawnParameters);
-	//ADBDObject* Exit = GetWorld()->SpawnActorDeferred<ADBDObject>(ExitZone, SpawnTransform, this);
-	if (Exit)
+
+void AObj_ExitDoor::CreateCombinedActor()
+{
+	if (IsValid(CombinedActorClass))
 	{
-		Exit->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Owner = this;
+		
+		if (ADBDObject* Exit = GetWorld()->SpawnActor<ADBDObject>(CombinedActorClass, SpawnParameters))
+		{
+			Exit->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+			CombinedActor = Exit;
+		}
 	}
+}
+
+AActor* AObj_ExitDoor::GetCombinedActor() const
+{
+	return CombinedActor;
 }

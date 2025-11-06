@@ -18,12 +18,12 @@ class DBDPROJECT_API ATheGameEdgeTileSpawner : public ATheGameTileSpawner
 	
 	UPROPERTY(EditDefaultsOnly, Category = "TileActors")
 	TArray<TSubclassOf<ATheGameTile>> EscapeTileActors;
-	UPROPERTY(EditDefaultsOnly, Category = "TileActors")
-	TArray<TSubclassOf<ATheGameTile>> DoubleRoomTileActors;
+	//UPROPERTY(EditDefaultsOnly, Category = "TileActors")
+	//TArray<TSubclassOf<ATheGameTile>> DoubleRoomTileActors;
 public:
 	TArray<TSubclassOf<ATheGameTile>> GetEscapeTileActors();
-	TArray<TSubclassOf<ATheGameTile>> GetDoubleRoomTileActors();
+	//TArray<TSubclassOf<ATheGameTile>> GetDoubleRoomTileActors();
 
 	void SpawnEscapeTile(int32 TargetTilesIndex);
-	void SpawnDoubleRoomTile(int32 TargetTilesIndex);
+	// SpawnDoubleRoomTile(int32 TargetTilesIndex);
 };

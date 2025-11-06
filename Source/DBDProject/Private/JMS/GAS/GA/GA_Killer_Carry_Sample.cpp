@@ -19,7 +19,7 @@ UGA_Killer_Carry_Sample::UGA_Killer_Carry_Sample()
 	ActivationOwnedTags.AddTag(DBDGameplayTags::Killer_Common_Status_Carrying);
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::OwnedTagPresent;
-	TriggerData.TriggerTag = DBDGameplayTags::Survivor_Status_Captured;
+	TriggerData.TriggerTag = DBDGameplayTags::Survivor_Status_Captured_Killer;
 	AttachSocketName = FName("SurvivorAttach");
 }
 
@@ -89,7 +89,7 @@ void UGA_Killer_Carry_Sample::PlayLoopMontage()
 		{
 			UAbilityTask_PlayMontageAndWait* PlayLoopMontageTask =
 				UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-					this, NAME_None, GetAnimMontage(0), 1.f);
+					this, NAME_None, FPVStartMontage, 1.f);
 			PlayLoopMontageTask->OnBlendOut.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);
 			PlayLoopMontageTask->OnCancelled.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);
 			PlayLoopMontageTask->OnCompleted.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);
@@ -100,7 +100,7 @@ void UGA_Killer_Carry_Sample::PlayLoopMontage()
 		{
 			UAbilityTask_PlayMontageAndWait* PlayLoopMontageTask =
 				UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-					this, NAME_None, GetAnimMontage(2), 1.f);
+					this, NAME_None, TPVStartMontage, 1.f);
 			PlayLoopMontageTask->OnBlendOut.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);
 			PlayLoopMontageTask->OnCancelled.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);
 			PlayLoopMontageTask->OnCompleted.AddDynamic(this, &UGA_Killer_Carry_Sample::K2_EndAbility);

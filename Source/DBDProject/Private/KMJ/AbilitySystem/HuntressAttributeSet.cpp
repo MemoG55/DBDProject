@@ -4,6 +4,8 @@
 #include "KMJ/AbilitySystem/HuntressAttributeSet.h"
 
 #include "Net/UnrealNetwork.h"
+#include "Shared/DBDBlueprintFunctionLibrary.h"
+#include "Shared/DBDGameplayTags.h"
 
 UHuntressAttributeSet::UHuntressAttributeSet()
 {

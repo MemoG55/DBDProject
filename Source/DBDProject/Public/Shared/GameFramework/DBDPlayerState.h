@@ -1,22 +1,30 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-// 로비에서 설정하게 될 Loadout 정보를 담고 있습니다.
-// Loadout에는 FName으로 DataTable을 조회할 키값들을 갖고 있습니다.
-// 인게임에서 Loadout 정보가 변경되면 (아이템 사용 등) 키값을 변경해서 로비로 돌아왔을 때 변경된 정보를 토대로 인벤토리를 업데이트 할 수 있도록 하려고 합니다.
+// 로비�서 �정�게 Loadout �보르고 �습�다.
+// Loadout�는 FName�로 DataTable조회�값�을 갖고 �습�다.
+// �게�에Loadout �보가 변경되�(�이�용  �값변경해로비롌아�을 변경된 �보률�롸벤�리륅데�트 �도롘려곩니
 
-// 플레이어의 역할을 Enum으로 갖고 있습니다.
-// ADBDGameMode::PostLogin에서 들어온 순서에 따라 역할을 배정하고 ADBDGameMode::HandleStartingNewPlayer에서 역할에 따라 캐릭터를 스폰합니다.
+// �레�어��Enum�로 갖고 �습�다.
+// ADBDGameMode::PostLogin�서 �어�서�라 ��배정�고 ADBDGameMode::HandleStartingNewPlayer�서 ���라 캐릭�� �폰�니
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
-#include "AbilitySystemInterface.h"
-#include "KMJ/AbilitySystem/KillerAttributeSet.h"
 #include "Shared/DBDStruct.h"
 #include "DBDPlayerState.generated.h"
 
 enum class EPlayerRole: uint8;
 class UDBDAbilitySystemComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSurvivorLoadOutUpdatedToSelf);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKillerLoadOutUpdatedToSelf);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerRoleUpdatedToSelf);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerStateUpdatedToSelf);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateAddedToSelf, ADBDPlayerState*, NewPS);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerRoleUpdatedToOther, ADBDPlayerState*, CurrentPS);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSurvivorLoadOutUpdatedToOther, ADBDPlayerState*, CurrentPS);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnKillerLoadOutUpdatedToOther, ADBDPlayerState*, CurrentPS);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateUpdatedToOther, ADBDPlayerState*, CurrentPS);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateUpdatedFromOther, ADBDPlayerState*, OtherPS);
 /**
  * 
  */
@@ -24,10 +32,34 @@ UCLASS()
 class DBDPROJECT_API ADBDPlayerState : public APlayerState/*, public IAbilitySystemInterface*/
 {
 	GENERATED_BODY()
-private:
+public:
 	ADBDPlayerState();
+
+	// Bind for Self
+	FOnSurvivorLoadOutUpdatedToSelf		OnSurvivorLoadOutUpdatedToSelf;
+	FOnKillerLoadOutUpdatedToSelf		OnKillerLoadOutUpdatedToSelf;
+	FOnPlayerRoleUpdatedToSelf			OnPlayerRoleUpdatedToSelf;
+	// When Added PlayerState to GameState->PlayerArray, Notice To Self
+	FOnPlayerStateAddedToSelf			OnPlayerStateAddedToSelf;
+
+	// When Update My PlayerState, Notice To Other
+	FOnPlayerStateUpdatedToOther		OnPlayerStateUpdatedToOther;
+	FOnPlayerStateUpdatedToSelf			OnPlayerStateUpdatedToSelf;
+	// When Update Other PlayerState, Notice To Self
+	FOnPlayerStateUpdatedFromOther		OnPlayerStateUpdatedFromOther;
+	
+	// Bind for OtherActor
+	// When Update My PlayerState, Notice To Other
+	FOnPlayerRoleUpdatedToOther			OnPlayerRoleUpdatedToOther;
+	FOnSurvivorLoadOutUpdatedToOther	OnSurvivorLoadOutUpdatedToOther;
+	FOnKillerLoadOutUpdatedToOther		OnKillerLoadOutUpdatedToOther;
+
+protected:
 	UPROPERTY(VisibleAnywhere,ReplicatedUsing=OnRep_PlayerRole, Category = "PlayerRole")
 	EPlayerRole PlayerRole;
+
+	UPROPERTY(Replicated)
+	EPlayerEndState PlayerEndState = EPlayerEndState::None;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "PlayerRole")
@@ -36,18 +68,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PlayerRole")
 	EPlayerRole SetPlayerRole(EPlayerRole NewRole);
 
-	// MMJ : 플레이어 반환
-	UFUNCTION(BlueprintCallable, Category = "GameFlow")
-	ADBDCharacter* GetPlayerCharacter();
-	// MMJ : 플레이어가 태그를 가지고 있는지 판별 (GameMode에서 Dead/Escape 상태 체크용)
-	UFUNCTION(BlueprintCallable, Category = "GameFlow")
-	bool GetPlayerStatusByTag(FGameplayTag Tag);
+	UFUNCTION()
+	EPlayerEndState GetPlayerEndState() const;
+	UFUNCTION()
+	void SetPlayerEndState(EPlayerEndState EndState = EPlayerEndState::None);
 	
-
+	// // JMS: Seamless Travel�서 �이�� 복사�는 �수것으�보임
+	virtual void CopyProperties(APlayerState* PlayerState) override;
 protected:
 	virtual void BeginPlay() override;
 public:
-	UPROPERTY(EditAnywhere,ReplicatedUsing=OnRep_SurvivorLoadout, Category = "Loadout")
+	//ReadWrite �시
+	UPROPERTY(EditAnywhere,ReplicatedUsing=OnRep_SurvivorLoadout, Category = "Loadout", BlueprintReadWrite)
 	FSurvivorLoadout SurvivorLoadout;
 	UPROPERTY(EditAnywhere,ReplicatedUsing=OnRep_KillerLoadout, Category = "Loadout")
 	FKillerLoadout KillerLoadout;
@@ -58,6 +90,14 @@ private:
 	void OnRep_KillerLoadout(FKillerLoadout OldLoadout);
 	UFUNCTION()
 	void OnRep_PlayerRole();
+
+public:
+	UFUNCTION()
+	virtual void OnRep_OnPlayerStateAddedToSelf(ADBDPlayerState* NewPS);
+
+	// if OtherPlayerStateChanged, This Function called
+	UFUNCTION()
+	void OnRep_OnPlayerStateUpdatedFromOther(ADBDPlayerState* OtherPS);
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 };

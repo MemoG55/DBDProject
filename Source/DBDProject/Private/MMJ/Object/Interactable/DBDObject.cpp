@@ -3,16 +3,13 @@
 
 #include "MMJ/Object/Interactable/DBDObject.h"
 
-#include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
-#include "JMS/GAS/SurvivorAttributeSet.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "MMJ/Object/AnimInstance/DBDObjectAnimInstance.h"
+#include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
+#include "MMJ/Object/Component/ICObject.h"
 #include "MMJ/Object/GAS/ObjAbilitySystemComponent.h"
 #include "MMJ/Object/GAS/ObjAttributeSet.h"
-#include "MMJ/Object/Widget/Obj_HUD.h"
-#include "Shared/DBDBlueprintFunctionLibrary.h"
-#include "Shared/DBDGameplayTags.h"
+#include "Net/UnrealNetwork.h"
 #include "Shared/Component/InteractableComponent.h"
 
 FName ADBDObject::InteractableComponentName = TEXT("InteractableComponent");
@@ -21,7 +18,7 @@ FName ADBDObject::InteractableComponentName = TEXT("InteractableComponent");
 ADBDObject::ADBDObject(const FObjectInitializer& ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
 	bReplicates = true;
 	//bNetLoadOnClient = false;
@@ -35,7 +32,7 @@ ADBDObject::ADBDObject(const FObjectInitializer& ObjectInitializer)
 	ObjAbilitySystemComponent = CreateDefaultSubobject<UObjAbilitySystemComponent>("ObjAbilitySystemComponent");
 	ObjAttributeSet = CreateDefaultSubobject<UObjAttributeSet>("ObjAttributeSet");
 
-	InteractableComponent = CreateDefaultSubobject<UInteractableComponent>(InteractableComponentName);
+	InteractableComponent = CreateDefaultSubobject<UICObject>(InteractableComponentName);
 	InteractableComponent->SetupAttachment(GetRootComponent());
 	InteractableComponent->SetCollisionProfileName(FName("InteractionOnly"));
 	//InteractableComponent->SetCollisionEnabled(ECollisionEnabled::Type::QueryOnly);
@@ -45,6 +42,10 @@ ADBDObject::ADBDObject(const FObjectInitializer& ObjectInitializer)
 	WidgetComponent->SetupAttachment(GetRootComponent());
 	WidgetComponent->SetWidgetSpace(EWidgetSpace::Screen); // 스크린 공간
 	WidgetComponent->SetDrawSize(FVector2D(10.0f, 3.0f));
+
+	AuraMesh = CreateDefaultSubobject<UStaticMeshComponent>("AuraMesh");
+	AuraMesh->SetupAttachment(GetRootComponent());
+	
 }
 
 UAbilitySystemComponent* ADBDObject::GetAbilitySystemComponent() const
@@ -54,16 +55,100 @@ UAbilitySystemComponent* ADBDObject::GetAbilitySystemComponent() const
 
 void ADBDObject::Init()
 {
-	if (WidgetComponent)
+	AuraMesh->SetVisibility(false);
+}
+
+void ADBDObject::OnRep_AuraStencilMap()
+{
+	const FStencilMap* FoundStencilMap = nullptr;
+	
+	for (const FStencilMap& StencilMap : StencilMaps)
 	{
-		ObjHUD = Cast<UObj_HUD>(WidgetComponent->GetUserWidgetObject());
-		if (ObjHUD && ObjAbilitySystemComponent)
+		if (StencilMap.PlayerState)
 		{
-			ObjHUD->ConfigureASC(ObjAbilitySystemComponent);
+			if (StencilMap.PlayerState->GetPlayerController())
+			{
+				if (StencilMap.PlayerState->GetPlayerController()->IsLocalController())
+				{
+					FoundStencilMap = &StencilMap;
+				}
+			}
 		}
+	}
+
+	if (FoundStencilMap)
+	{
+		EnableAura();
+		if (FoundStencilMap->bUseBackground)
+		{
+			EnableBackground();
+		}
+		else
+		{
+			DisableBackground();
+		}
+		SetCustomDepth(FoundStencilMap->StencilValue);
+	}
+	else
+	{
+		DisableAura();
+		DisableBackground();
 	}
 }
 
+void ADBDObject::EnableAura()
+{
+	if (IsValid(ObjectMesh))
+	{
+		ObjectMesh->SetRenderCustomDepth(true);
+		ObjectMesh->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_255);
+		//ObjectMesh->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_1);
+	}
+}
+
+void ADBDObject::EnableBackground()
+{
+	if (IsValid(WidgetComponent))
+	{
+		//WidgetComponent->SetVisibility(true);
+	}
+	if (IsValid(AuraMesh))
+	{
+		//AuraMesh->SetVisibility(true);
+		//AuraMesh->SetCustomDepthStencilValue(0);
+		//AuraMesh->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_128);
+		//AuraMesh->SetRenderCustomDepth(true);
+	}
+}
+
+void ADBDObject::DisableAura()
+{
+	if (IsValid(ObjectMesh))
+	{
+		ObjectMesh->SetRenderCustomDepth(false);
+	}
+}
+
+void ADBDObject::DisableBackground()
+{
+	if (IsValid(WidgetComponent))
+	{
+		//WidgetComponent->SetVisibility(false);
+	}
+	if (IsValid(AuraMesh))
+	{
+		//AuraMesh->SetVisibility(false);
+		//AuraMesh->SetRenderCustomDepth(false);
+	}
+}
+
+void ADBDObject::SetCustomDepth(int32 value)
+{
+	if (ObjectMesh)
+	{
+		ObjectMesh->SetCustomDepthStencilValue(value);
+	}
+}
 
 
 // Called when the game starts or when spawned
@@ -78,6 +163,16 @@ void ADBDObject::BeginPlay()
 		ObjAbilitySystemComponent->ServerSideInit();
 	}
 	Init();
+}
+
+void ADBDObject::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME_CONDITION_NOTIFY(ADBDObject, bIsDestroyed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ADBDObject, StencilMaps, COND_None, REPNOTIFY_Always);
+	//DOREPLIFETIME_CONDITION_NOTIFY(ADBDObject, Entity, COND_None, REPNOTIFY_Always);
+	
 }
 
 // Called every frame
@@ -95,6 +190,11 @@ void ADBDObject::PostInitializeComponents()
 	}
 }
 
+AObj_Entity* ADBDObject::GetEntity() const
+{
+	return Entity;
+}
+
 UInteractableComponent* ADBDObject::GetInteractableComponent() const
 {
 	if (InteractableComponent)
@@ -104,7 +204,19 @@ UInteractableComponent* ADBDObject::GetInteractableComponent() const
 	return nullptr;
 }
 
-USkeletalMeshComponent* ADBDObject::GetSkeletalMeshComponent() const
+void ADBDObject::SetDestroyed()
 {
-	return ObjectMesh;
+	bIsDestroyed = true;
+
+	OnRep_IsDestroyed();
+}
+
+void ADBDObject::OnRep_IsDestroyed()
+{
+}
+
+
+const TArray<FMotionWarpingInfo> ADBDObject::GetMotionWarpingTargets_Implementation()
+{
+	return ObjectMotionWarpingTargetInfos;
 }

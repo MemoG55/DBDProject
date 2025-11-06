@@ -7,7 +7,7 @@
 #include "JMS/GAS/SurvivorAbilitySystemComponent.h"
 #include "JMS/GAS/SurvivorAttributeSet.h"
 #include "JMS/GAS/GE/GE_HealSurvivorFromDying.h"
-#include "JMS/GAS/GE/GE_HealSurvivorFromInjured.h"
+#include "JMS/GAS/GE/GE_HealSurvivor.h"
 #include "Shared/DBDBlueprintFunctionLibrary.h"
 #include "Shared/DBDDebugHelper.h"
 #include "Shared/Interface/Interactor.h"
@@ -25,14 +25,14 @@ void USurvivorInteractableComponent::StartInteraction(AActor* Actor)
 	IInteractor* Interactor = Cast<IInteractor>(Actor);
 	if (!Interactor)
 	{
-		Debug::Print(TEXT("JMS12 : SurvivorInteractableComponent : StartInteraction : Interactor is null"), 12);
+		//Debug::Print(TEXT("JMS12 : SurvivorInteractableComponent : StartInteraction : Interactor is null"), 12);
 		return;
 	}
 	ASurvivorCharacter* SurvivorCharacter = Cast<ASurvivorCharacter>(OwningActor);
 	if (!SurvivorCharacter)
 	{
-		Debug::Print(
-			TEXT("JMS13 : SurvivorInteractableComponent : StartInteraction : this is not SurvivorCharacter"), 13);
+		//Debug::Print(
+		//	TEXT("JMS13 : SurvivorInteractableComponent : StartInteraction : this is not SurvivorCharacter"), 13);
 		return;
 	}
 	if (Interactor->GetInteractorRole() == EPlayerRole::Killer)
@@ -51,7 +51,7 @@ bool USurvivorInteractableComponent::CanInteraction(AActor* Actor)
 	IInteractor* Interactor = Cast<IInteractor>(Actor);
 	if (!Interactor)
 	{
-		Debug::Print(TEXT("JMS11 : SurvivorInteractableComponent : CanInteraction : Interactor is null"), 11);
+		//Debug::Print(TEXT("JMS11 : SurvivorInteractableComponent : CanInteraction : Interactor is null"), 11);
 		return false;
 	}
 	if (Interactor->GetInteractorRole() == EPlayerRole::Killer)
@@ -70,28 +70,26 @@ void USurvivorInteractableComponent::TickInteraction(AActor* Actor)
 {
 	Super::TickInteraction(Actor);
 	float TaskSpeed = GetHealSpeedAttributeValue();
-	if (OwningSurvivorASC->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Injured))
-	{
-		FGameplayEffectContextHandle SpecContext = OwningSurvivorASC->MakeEffectContext();
-		SpecContext.AddSourceObject(OwningActor);
-		SpecContext.AddInstigator(OwningActor, OwningActor);
+	FGameplayEffectContextHandle SpecContext = OwningSurvivorASC->MakeEffectContext();
+	SpecContext.AddSourceObject(OwningActor);
+	SpecContext.AddInstigator(OwningActor, OwningActor);
 
-		FGameplayEffectSpecHandle SpecHandle = OwningSurvivorASC->MakeOutgoingSpec(
-			UGE_HealSurvivorFromInjured::StaticClass(), 1, SpecContext);
-		SpecHandle.Data->SetSetByCallerMagnitude(DBDGameplayTags::Survivor_SetbyCaller_HealAmount, TaskSpeed);
-		OwningSurvivorASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-	}
-	else if (OwningSurvivorASC->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Dying))
-	{
-		FGameplayEffectContextHandle SpecContext = OwningSurvivorASC->MakeEffectContext();
-		SpecContext.AddSourceObject(OwningActor);
-		SpecContext.AddInstigator(OwningActor, OwningActor);
+	FGameplayEffectSpecHandle SpecHandle = OwningSurvivorASC->MakeOutgoingSpec(
+		UGE_HealSurvivor::StaticClass(), 1, SpecContext);
+	SpecHandle.Data->SetSetByCallerMagnitude(DBDGameplayTags::Survivor_SetbyCaller_HealAmount, TaskSpeed / 10.f);
+	OwningSurvivorASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 
-		FGameplayEffectSpecHandle SpecHandle = OwningSurvivorASC->MakeOutgoingSpec(
-			UGE_HealSurvivorFromDying::StaticClass(), 1, SpecContext);
-		SpecHandle.Data->SetSetByCallerMagnitude(DBDGameplayTags::Survivor_SetbyCaller_HealAmount, TaskSpeed);
-		OwningSurvivorASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-	}
+	// else if (OwningSurvivorASC->HasMatchingGameplayTag(DBDGameplayTags::Survivor_Status_Dying))
+	// {
+	// 	FGameplayEffectContextHandle SpecContext = OwningSurvivorASC->MakeEffectContext();
+	// 	SpecContext.AddSourceObject(OwningActor);
+	// 	SpecContext.AddInstigator(OwningActor, OwningActor);
+	//
+	// 	FGameplayEffectSpecHandle SpecHandle = OwningSurvivorASC->MakeOutgoingSpec(
+	// 		UGE_HealSurvivorFromDying::StaticClass(), 1, SpecContext);
+	// 	SpecHandle.Data->SetSetByCallerMagnitude(DBDGameplayTags::Survivor_SetbyCaller_HealAmount, TaskSpeed);
+	// 	OwningSurvivorASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	// }
 }
 
 void USurvivorInteractableComponent::FinishInteraction(AActor* Actor)
@@ -100,12 +98,13 @@ void USurvivorInteractableComponent::FinishInteraction(AActor* Actor)
 
 	UnSetInteractors(Actor);
 
-	// ActivateGE를 StartInteraction에서 제거(공통)
+	// ActivateGE�StartInteraction�서 �거(공통)
 	if (InteractedActors.IsEmpty())
 	{
-		OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromInjured::StaticClass(),OwningSurvivorASC);
-		OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromDying::StaticClass(),OwningSurvivorASC);
-
+		OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivor::StaticClass(),
+		                                                            OwningSurvivorASC);
+		OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromDying::StaticClass(),
+		                                                            OwningSurvivorASC);
 	}
 	OnDisconnect.Broadcast();
 }
@@ -158,7 +157,9 @@ float USurvivorInteractableComponent::GetHealSpeedAttributeValue()
 void USurvivorInteractableComponent::OnCompleted_Implementation()
 {
 	Super::OnCompleted_Implementation();
-	// ActivateGE를 제거(공통)
-	OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromInjured::StaticClass(),OwningSurvivorASC);
-	OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromDying::StaticClass(),OwningSurvivorASC);
+	// ActivateGE륜거(공통)
+	OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivor::StaticClass(),
+	                                                            OwningSurvivorASC);
+	OwningSurvivorASC->RemoveActiveGameplayEffectBySourceEffect(UGE_HealSurvivorFromDying::StaticClass(),
+	                                                            OwningSurvivorASC);
 }

@@ -3,64 +3,87 @@
 
 #include "MMJ/Object/Widget/Obj_Progress.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "MMJ/Object/GAS/ObjAttributeSet.h"
+#include "Shared/GAS/DBDAbilitySystemComponent.h"
+
+void UObj_Progress::SetObjectASC(UDBDAbilitySystemComponent* ASC, const FGameplayAttribute& CurrentAttribute,
+                                 const FGameplayAttribute& MaxAttribute)
+{
+
+	if (OwnerASC)
+	{
+		bool bFound = false;
+		float RecoverValue = OwnerASC->GetGameplayAttributeValue(UObjAttributeSet::GetRecoverTaskAttribute(), bFound);
+		if (bFound)
+		{
+			OwnerASC->GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetRecoverTaskAttribute()).RemoveAll(this);
+		}
+	}
+	if (IsValid(ASC))
+	{
+		bool bFound = false;
+		float RecoverValue = ASC->GetGameplayAttributeValue(UObjAttributeSet::GetRecoverTaskAttribute(), bFound);
+		if (bFound)
+		{
+			CachedRecoverValue = RecoverValue;
+			ASC->GetGameplayAttributeValueChangeDelegate(UObjAttributeSet::GetRecoverTaskAttribute()).AddUObject(this, &ThisClass::UpdateRecoverValue);
+		}
+	}
+	Super::SetObjectASC(ASC, CurrentAttribute, MaxAttribute);
+
+	if (IsValid(RecoverProgressMarking))
+	{
+		RecoverProgressMarking->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
 
 void UObj_Progress::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	SetVisibility(ESlateVisibility::Visible);
 }
 
-void UObj_Progress::UpdateCurrentValue(const FOnAttributeChangeData& ChangeData)
+void UObj_Progress::Update()
 {
-	UpdateValue(ChangeData.NewValue, CachedMaxValue);
-}
+	Super::Update();
 
-void UObj_Progress::UpdateMaxValue(const FOnAttributeChangeData& ChangeData)
-{
-	UpdateValue(CachedCurrentValue, ChangeData.NewValue);
-}
-
-void UObj_Progress::SetDisplay(bool IsDisplay)
-{
-	SetVisibility(IsDisplay ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
-}
-
-void UObj_Progress::SetObjectASC(UObjAbilitySystemComponent* ASC, const FGameplayAttribute& CurrentAttribute,
-                                 const FGameplayAttribute& MaxAttribute)
-{
-	if (ASC)
+	if (IsValid(RecoverProgressMarking))
 	{
-		bool bFound = false;
-		float CurrentValue = ASC->GetGameplayAttributeValue(CurrentAttribute, bFound);
-		float MaxValue = ASC->GetGameplayAttributeValue(MaxAttribute, bFound);
-
-		if (bFound)
+		if (CachedRecoverValue > 0)
 		{
-			SetDisplay(true);
-			UpdateValue(CurrentValue, MaxValue);
+			if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(RecoverProgressMarking->Slot))
+			{
+				FGeometry BarGeometry = ProgressBar->GetCachedGeometry();
+				float BarLength = BarGeometry.GetLocalSize().X;
+
+				float MarkerWidth = MarkerSlot->GetSize().X;
+				float NewPercent = CachedRecoverValue / CachedMaxValue;
+				float NewXPosition = (BarLength * NewPercent) - (MarkerWidth / 2.f);
+
+				FVector2D CurrentPosition = MarkerSlot->GetPosition();
+				FVector2D NewPosition(NewXPosition, CurrentPosition.Y);
+
+				MarkerSlot->SetPosition(NewPosition);
+			}
+			
+			if (!RecoverProgressMarking->IsVisible())
+			{
+				RecoverProgressMarking->SetVisibility(ESlateVisibility::Visible);
+			}
 		}
-		
-		ASC->GetGameplayAttributeValueChangeDelegate(CurrentAttribute).AddUObject(this, &ThisClass::UpdateCurrentValue);
-		ASC->GetGameplayAttributeValueChangeDelegate(MaxAttribute).AddUObject(this, &ThisClass::UpdateMaxValue);
-	}
-	else
-	{
-		SetDisplay(false);
+		else
+		{
+			if (RecoverProgressMarking->IsVisible())
+			{
+				RecoverProgressMarking->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
 	}
 }
 
-void UObj_Progress::UpdateValue(float CurrentValue, float MaxValue)
+void UObj_Progress::UpdateRecoverValue(const FOnAttributeChangeData& ChangeData)
 {
-	if (MaxValue <= 0) return;
-	CachedCurrentValue = CurrentValue;
-	CachedMaxValue = MaxValue;
-
-	float NewPercent = CurrentValue / MaxValue;
-	if (ProgressBar)
-	{
-		ProgressBar->SetPercent(NewPercent);
-	}
+	CachedRecoverValue = ChangeData.NewValue;
 }

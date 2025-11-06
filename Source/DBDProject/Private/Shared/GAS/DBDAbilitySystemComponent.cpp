@@ -7,6 +7,7 @@
 
 UDBDAbilitySystemComponent::UDBDAbilitySystemComponent()
 {
+	
 }
 
 void UDBDAbilitySystemComponent::AuthApplyGameplayEffect(TSubclassOf<UGameplayEffect> GameplayEffect, int level)

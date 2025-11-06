@@ -4,14 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "Shared/DBDStruct.h"
 #include "Interactable.generated.h"
 
 
+struct FMotionWarpingInfo;
 enum class EPlayerRole:uint8;
 class UInteractableComponent;
 class UInputMappingContext;
 // This class does not need to be modified.
-UINTERFACE(MinimalAPI)
+UINTERFACE(MinimalAPI, Blueprintable)
 class UInteractable : public UInterface
 {
 	GENERATED_BODY()
@@ -28,5 +30,6 @@ class DBDPROJECT_API IInteractable
 public:
 	UFUNCTION()
 	virtual UInteractableComponent* GetInteractableComponent() const = 0;
-
+	UFUNCTION(BlueprintNativeEvent)
+	const TArray<FMotionWarpingInfo> GetMotionWarpingTargets();
 };

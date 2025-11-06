@@ -3,19 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Shared/Perk/PerkInstance.h"
+#include "Shared/Perk/PerkComponent.h"
 #include "Perk_BotanyKnowledge.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class DBDPROJECT_API UPerk_BotanyKnowledge : public UPerkInstance
+class DBDPROJECT_API UPerk_BotanyKnowledge : public UPerkComponent
 {
 	GENERATED_BODY()
 
 public:
-	virtual void OnInitialized() override;
+	UPerk_BotanyKnowledge();
+	virtual void OnServerSideInitialized() override;
 	
 	
 	

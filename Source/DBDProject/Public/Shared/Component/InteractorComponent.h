@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "InteractorComponent.generated.h"
 
 
@@ -20,8 +21,8 @@ class IAbilitySystemInterface;
 class USphereComponent;
 class IInteractor;
 class IInteractable;
-class UCapsuleComponent;
 class UInputMappingContext;
+struct FMotionWarpingTarget;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DBDPROJECT_API UInteractorComponent : public USphereComponent
@@ -40,6 +41,7 @@ public:
 	void EndInteraction();
 
 	void SearchingEnabled(bool bEnabled);
+
 protected:
 
 	UFUNCTION()
@@ -53,6 +55,9 @@ protected:
 
 private:
 	IInteractable* CurrentInteractable;
+	// JMS: CurrentInteractable이 이전 값과 달라질 경우에만 RPC를 호출하여 업데이트 해보려고 합니다
+	UFUNCTION(Client, Reliable)
+	void Client_CurrentInteractableChanged(AActor* NewInteractable);
 
 	UPROPERTY()
 	UInputMappingContext* RegisteredInputMappingContext;
@@ -70,10 +75,10 @@ private:
 	 *KMJ::수정하지 마세요...
 	 *0917: IInteractable*은 서버랑 연동이 안 되서 연동용으로 만들었습니다
 	*/
-	UPROPERTY(ReplicatedUsing=OnRep_CurrentInteractableActor)
+	//UPROPERTY(ReplicatedUsing=OnRep_CurrentInteractableActor)
 	AActor* CurrentInteractableActor;
-	UFUNCTION()
-	void OnRep_CurrentInteractableActor();
+	//UFUNCTION()
+	//void OnRep_CurrentInteractableActor();
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 

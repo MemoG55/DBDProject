@@ -53,8 +53,7 @@ void UInteractableComponent::Init()
 
 bool UInteractableComponent::CheckAuthority() const
 {
-	if (!OwningActor || !OwningActor->HasAuthority() || !OwningASC) return false;
-	return true;
+	return OwningActor && OwningActor->HasAuthority() && OwningASC;
 }
 
 
@@ -121,7 +120,7 @@ void UInteractableComponent::CompleteInteraction(AActor* Actor)
 	if (!CheckAuthority()) return;
 }
 
-void UInteractableComponent::CancelInteraction(AActor* Actor)
+void UInteractableComponent::DestroyInteraction(AActor* Actor)
 {
 	if (!CheckAuthority()) return;
 }
@@ -140,24 +139,52 @@ TArray<AActor*> UInteractableComponent::GetInteractors()
 void UInteractableComponent::SetInteractors(AActor* Actor)
 {
 	if (!CheckAuthority()) return;
+
+	if (!Actor) return;
 	
 	if (!InteractedActors.Contains(Actor))
 	{
 		InteractedActors.Add(Actor);
+
+		CachedCurrentInteractor = Actor;
+		
+		OnInteract.Broadcast();
+		OnInteractSourceObject.Broadcast(OwningActor);
+		if (ADBDCharacter* Character = Cast<ADBDCharacter>(Actor))
+		{
+			OnInteractWithActor.Broadcast(Actor);
+			OnInteractInfo.Broadcast(OwningActor, Actor);
+		}
 	}
-	// TODO :: 매핑컨텍스트(상호작용 + 스킬체크 키) 전달(Overlap시 전달)
-	
-	// TODO :: UI 활성화
 }
 
 void UInteractableComponent::UnSetInteractors(AActor* Actor)
 {
 	if (!CheckAuthority()) return;
-	
-	InteractedActors.RemoveAll([Actor](const AActor* InteractedActor){ return InteractedActor == Actor; });
-	// TODO :: 매핑컨텍스트(상호작용 + 스킬체크 키) 제거
 
-	// TODO :: UI 비활성화
+	if (!Actor) return;
+
+	if (InteractedActors.Contains(Actor))
+	{
+		InteractedActors.RemoveAll([Actor](const AActor* InteractedActor){ return InteractedActor == Actor; });
+
+		if (InteractedActors.Num() > 0)
+		{
+			CachedCurrentInteractor = InteractedActors.Last();
+		}
+		else
+		{
+			CachedCurrentInteractor = nullptr;
+		}
+		
+		OnDisconnect.Broadcast();
+		OnDisconnectSourceObject.Broadcast(OwningActor);
+		if (ADBDCharacter* Character = Cast<ADBDCharacter>(Actor))
+		{
+			OnDisconnectWithActor.Broadcast(Actor);
+			OnDisconnectInfo.Broadcast(OwningActor, Actor);
+		}
+	}
 }
 
 void UInteractableComponent::BeginInteraction(AActor* Actor)
@@ -304,4 +331,19 @@ void UInteractableComponent::OnDestroyedWithActor_Implementation(AActor* Actor)
 	if (!CheckAuthority()) return;
 
 	if (!Actor) return;
+}
+
+bool UInteractableComponent::IsActivate()
+{
+	return UDBDBlueprintFunctionLibrary::NativeActorHasTag(OwningActor, DBDGameplayTags::Object_Status_IsActive);
+}
+
+bool UInteractableComponent::IsComplete()
+{
+	return UDBDBlueprintFunctionLibrary::NativeActorHasTag(OwningActor, DBDGameplayTags::Object_Status_IsComplete);
+}
+
+bool UInteractableComponent::IsDestroy()
+{
+	return UDBDBlueprintFunctionLibrary::NativeActorHasTag(OwningActor, DBDGameplayTags::Object_Status_IsDestroy);
 }

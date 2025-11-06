@@ -36,25 +36,28 @@ EPlayerRole ADBDPlayerState::SetPlayerRole(EPlayerRole NewRole)
 	return PlayerRole;
 }
 
-ADBDCharacter* ADBDPlayerState::GetPlayerCharacter()
+EPlayerEndState ADBDPlayerState::GetPlayerEndState() const
 {
-	if (ADBDPlayerController* PC = Cast<ADBDPlayerController>(GetOwner()))
-	{
-		if (ADBDCharacter* Character = Cast<ADBDCharacter>(PC->GetPawn()))
-		{
-			return Character;
-		}
-	}
-	return nullptr;
+	return PlayerEndState;
 }
 
-bool ADBDPlayerState::GetPlayerStatusByTag(FGameplayTag Tag)
+void ADBDPlayerState::SetPlayerEndState(EPlayerEndState EndState)
 {
-	if (GetPlayerCharacter())
+	PlayerEndState = EndState;
+}
+
+//
+void ADBDPlayerState::CopyProperties(APlayerState* PlayerState)
+{
+	Super::CopyProperties(PlayerState);
+	
+	if (ADBDPlayerState* NewPS = Cast<ADBDPlayerState>(PlayerState))
 	{
-		return GetPlayerCharacter()->GetAbilitySystemComponent()->HasMatchingGameplayTag(Tag);
+		NewPS->SurvivorLoadout = SurvivorLoadout;
+		NewPS->KillerLoadout = KillerLoadout;
+		NewPS->SetPlayerRole(PlayerRole);
+		NewPS->SetPlayerEndState(PlayerEndState);
 	}
-	return false;
 }
 
 void ADBDPlayerState::BeginPlay()
@@ -64,20 +67,38 @@ void ADBDPlayerState::BeginPlay()
 
 void ADBDPlayerState::OnRep_SurvivorLoadout(FSurvivorLoadout OldLoadout)
 {
+	OnPlayerStateUpdatedToSelf.Broadcast();
+	OnPlayerStateUpdatedToOther.Broadcast(this);
 }
 
 void ADBDPlayerState::OnRep_KillerLoadout(FKillerLoadout OldLoadout)
 {
+	OnPlayerStateUpdatedToSelf.Broadcast();
+	OnPlayerStateUpdatedToOther.Broadcast(this);
 }
 
 void ADBDPlayerState::OnRep_PlayerRole()
 {
+	OnPlayerRoleUpdatedToSelf.Broadcast();
+	OnPlayerRoleUpdatedToOther.Broadcast(this);
 }
 
+void ADBDPlayerState::OnRep_OnPlayerStateAddedToSelf(ADBDPlayerState* NewPS)
+{
+	OnPlayerStateAddedToSelf.Broadcast(NewPS);	
+}
+
+
+void ADBDPlayerState::OnRep_OnPlayerStateUpdatedFromOther(ADBDPlayerState* OtherPS)
+{
+	// Receive The Other PlayerState Updated
+	OnPlayerStateUpdatedFromOther.Broadcast(OtherPS);
+}
 void ADBDPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION_NOTIFY(ADBDPlayerState, SurvivorLoadout, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ADBDPlayerState, KillerLoadout, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ADBDPlayerState, PlayerRole, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ADBDPlayerState, PlayerEndState, COND_None, REPNOTIFY_Always);
 }

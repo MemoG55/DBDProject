@@ -5,10 +5,15 @@
 
 #include "KMJ/Character/KillerHuntress.h"
 #include "KMJ/DataAsset/DA_KillerGameplayAbilities.h"
+#include "Shared/DBDGameplayTags.h"
+#include "Shared/GAS/GA/DBDGameplayAbility.h"
+#include "Shared/Subsystem/DBDObjectObserver.h"
 
 UKillerAbilitySystemComponent::UKillerAbilitySystemComponent()
 {
 	//Delegate 나중에 연결할 거 있으면 연결
+	SetIsReplicated(true);
+	UAbilitySystemComponent::SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 }
 
 void UKillerAbilitySystemComponent::InitializeBaseAttributes()

@@ -9,9 +9,7 @@
 #include "../../MMJ/Object/GAS/ObjAttributeSet.h"
 #include "DBDGameStateBase.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEscapeTimerBeginDelegate);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEscapeTimerEndDelegate);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEscapeTimerDelegate, float, NewValue);
+
 
 /**
  * 
@@ -23,88 +21,94 @@ class DBDPROJECT_API ADBDGameStateBase : public AGameStateBase
 public:
 	ADBDGameStateBase();
 
-	FOnEscapeTimerBeginDelegate OnEscapeTimerBegin;
-	FOnEscapeTimerEndDelegate OnEscapeTimerEnd;
-	FOnEscapeTimerDelegate OnEscapeTimer;
-	
+#pragma region Information:
+	UPROPERTY()
+	class UDBDCharacterObserver* CharacterObserver;
+	UPROPERTY()
+	class UDBDObjectObserver* ObjectObserver;
 
+#pragma endregion
+	
+protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-private:
-	// 탈출 타이머 발동 시간
-	UPROPERTY(ReplicatedUsing = OnRep_RemainingEscapeTime)
-	float RemainingEscapeTime = 120.f;
-
-	UPROPERTY()
-	float MaxEscapeTime = 120.f;
-
-	// 탈출 타이머 실행주기
-	UPROPERTY()
-	float EscapeTimerInterval = 0.1f;
-
-	// 탈출 타이머
-	UPROPERTY(ReplicatedUsing = OnRep_EscapeTimer)
-	FTimerHandle EscapeTimer;
-	
+#pragma region EndGame:
 public:
-	UFUNCTION(BlueprintCallable)
-	float GetMaxEscapeTime();
 	
-	UFUNCTION()
-	void SetEscapeTimer();
+private:
+	// 탈출 타이머 발동 시간(클라이언트 복제용)
+	UPROPERTY(ReplicatedUsing = OnRep_RemainingEscapeTime)
+	float RemainingEscapeTime;
 
+	// 탈출 타이머가 느려졌는지(클라이언트 복제용)
+	UPROPERTY(ReplicatedUsing = OnRep_IsSlowEscape)
+	bool bIsSlowEscape = false;
+
+public:
+	// RemainingEscapeTime 업데이트
 	UFUNCTION()
-	void TickEscapeTimer();
+	void SetRemainingEscapeTime(float NewTime);
 
 	// 탈출 타이머의 남은 시간을 리플리케이트
 	UFUNCTION()
-	void OnRep_RemainingEscapeTime();
+	void OnRep_RemainingEscapeTime(float NewTime);
 
+	// bIsSlowEscape 업데이트
 	UFUNCTION()
-	void OnRep_EscapeTimer();
+	void SetIsSlowEscape(bool bIsSlow);
 
+	// 클라이언트의 EscapeTimerUI 이미지를 교체
+	UFUNCTION()
+	void OnRep_IsSlowEscape();
+	
 	UPROPERTY(ReplicatedUsing = OnRep_bIsGameEnded)
 	bool bIsGameEnded;
 
 	UFUNCTION()
-	void SetGameEnd(bool Result);
+	void SetGameEnd();
 
 	UFUNCTION()
 	void OnRep_bIsGameEnded();
 
-	UFUNCTION(Client, Reliable)
+	UFUNCTION(Server, Reliable)
 	void MoveToEndGameLevel();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UUserWidget* EndGameWidget;
+#pragma endregion
 	
 protected:
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameClearCondition")
-	TArray<ADBDObject*> Generators;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameClearCondition")
-	TArray<ADBDObject*> ExitDoors;
-	
-	UFUNCTION()
-	int32 GetRequiredGeneratorCount();
 
-	UFUNCTION()
-	void CheckGeneratorState();
-
-	UFUNCTION()
-	int32 GetSurvivorCount();
-
-private:
-	// 수리된 발전기 수량
+#pragma region GameFlow:
 	UPROPERTY()
-	int32 RepairGeneratorCount;
+	TArray<class ASurvivorCharacter*> Survivors;
+	
+	UPROPERTY()
+	class AKillerCharacter* Killer;
+		
+	UPROPERTY()
+	TArray<class AObj_Generator*> Generators;
+	
+	UPROPERTY()
+	TArray<class AObj_ExitDoor*> ExitDoors;
 
-public:
+	UPROPERTY()
+	TArray<class AObj_Hook*> Hooks;
+
+	UPROPERTY()
+	TArray<class AObj_Exit*> Exits;
+
+	UPROPERTY(ReplicatedUsing = OnRep_RequiredGeneratorRepairCount)
+	int32 RequiredGeneratorRepairCount;
+
 	UFUNCTION()
-	int32 GetRepairGeneratorCount();
+	void OnRep_RequiredGeneratorRepairCount();
+
+#pragma endregion
+
 };
 

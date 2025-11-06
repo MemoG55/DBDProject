@@ -4,6 +4,8 @@
 #include "KMJ/AnimInstances/KillerAnimInstance.h"
 #include "Gameframework/Character.h"
 #include "Gameframework/CharacterMovementComponent.h"
+#include "GameFramework/GameSession.h"
+#include "Kismet/GameplayStatics.h"
 #include "KMJ/Character/KillerCharacter.h"
 #include "Net/UnrealNetwork.h"
 
@@ -28,7 +30,6 @@ void UKillerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		KillerSpeed = KillerOwnerCharacter->GetVelocity().Length();
 	}
 }
-
 void UKillerAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
@@ -36,6 +37,15 @@ void UKillerAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	{
 		//Debug::Print(TEXT("PlayerAnimInstance : Can't find PlayerCharacter by Update"),FColor::Red,1000);
 		return;
+	}
+	//KillerAim_Horizontal = FRotator::NormalizeAxis(KillerOwnerCharacter->KillerAim_Horizontal);
+	if (KillerOwnerCharacter->IsLocallyControlled())
+	{
+		KillerAim_Horizontal = FMath::ClampAngle(KillerOwnerCharacter->GetControlRotation().Pitch, -90.0f, 90.0f);
+	}
+	else
+	{
+		KillerAim_Horizontal = FRotator::NormalizeAxis(KillerOwnerCharacter->KillerAim_Horizontal);	
 	}
 }
 

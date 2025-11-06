@@ -9,6 +9,7 @@ enum class ESurvivorAbilityInputID : uint8;
 class UInputAction;
 class UInputMappingContext;
 
+
 UCLASS()
 class DBDPROJECT_API UDA_SurvivorInput : public UDataAsset
 {

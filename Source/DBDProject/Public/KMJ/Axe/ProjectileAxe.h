@@ -35,8 +35,9 @@ public:
                    bool bFromSweep, const FHitResult& SweepResult);
     
 	UFUNCTION()
-	void ShootInDirection(const FVector& ShootDirection, const float Speed) const;
+	void ShootInDirection(const FVector& ShootDirection, const float Speed);
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	UProjectileMovementComponent* ProjectileMovementComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Killer", meta=(AllowPrivateAccess = "true"))
@@ -48,9 +49,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	
-private: 
+public: 
 	UPROPERTY(VisibleAnywhere)
 	class UBoxComponent* CollisionBox;
-
-
 };

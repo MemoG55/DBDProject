@@ -27,6 +27,9 @@ public:
 	virtual void BeginPlay() override;
 
 private:
+	UFUNCTION()
+	bool CheckAuthority() const;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "GA")
 	class UObjDataAsset* ObjDataAsset;
 

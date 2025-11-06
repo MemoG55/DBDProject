@@ -1,0 +1,32 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "JMS/Perk/Perk_Bond.h"
+
+#include "Shared/DBDDebugHelper.h"
+#include "Shared/Subsystem/DBDCharacterObserver.h"
+
+
+UPerk_Bond::UPerk_Bond()
+{
+	PerkID = FName(TEXT("Bond"));
+}
+
+void UPerk_Bond::OnServerSideInitialized()
+{
+	Super::OnServerSideInitialized();
+}
+
+void UPerk_Bond::OnOwnerClientSideInitialized()
+{
+	Super::OnOwnerClientSideInitialized();
+		
+	UDBDCharacterObserver* CharacterObserver = GetWorld()->GetSubsystem<UDBDCharacterObserver>();
+	if (!CharacterObserver)
+	{
+		//Debug::Print(TEXT("JMS11111:CharacterObserver is null"), 11111);
+		return;
+	}
+
+	CharacterObserver->EnableSurvivorAuraWithDistanceAndTag(GetOuterAsDBDCharacter(), 1000);
+}

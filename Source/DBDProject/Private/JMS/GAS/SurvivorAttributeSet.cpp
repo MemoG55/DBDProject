@@ -42,9 +42,39 @@ void USurvivorAttributeSet::OnRep_MovementSpeed(const FGameplayAttributeData& Ol
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, MovementSpeed, OldValue);
 }
 
-void USurvivorAttributeSet::OnRep_GeneratorRepairSpeed(const FGameplayAttributeData& OldValue)
+void USurvivorAttributeSet::OnRep_SprintSpeed(const FGameplayAttributeData& OldValue)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, GeneratorRepairSpeed, OldValue);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, SprintSpeed, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_CrouchSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, CrouchSpeed, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_CrawlSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, CrawlSpeed, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_InteractSpeed_Generator(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, InteractSpeed_Generator, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_InteractSpeed_ExitDoor(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, InteractSpeed_ExitDoor, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_InteractSpeed_Chest(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, InteractSpeed_Chest, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_InteractSpeed_TotemCleansing(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, InteractSpeed_TotemCleansing, OldValue);
 }
 
 void USurvivorAttributeSet::OnRep_HealSpeed(const FGameplayAttributeData& OldValue)
@@ -52,9 +82,35 @@ void USurvivorAttributeSet::OnRep_HealSpeed(const FGameplayAttributeData& OldVal
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, HealSpeed, OldValue);
 }
 
+void USurvivorAttributeSet::OnRep_HookSabotageSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, HookSabotageSpeed, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_RescueSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, RescueSpeed, OldValue);
+}
+
 void USurvivorAttributeSet::OnRep_SkillCheckFrequency(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, SkillCheckFrequency, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_QuickActionSoundVolume(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, QuickActionSoundVolume, OldValue);
+}
+
+void USurvivorAttributeSet::OnRep_CurrentItemCharge(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, CurrentItemCharge, OldValue);
+	// OnCurrentItemChargeChanged.ExecuteIfBound(GetCurrentItemCharge() / GetMaxItemCharge());
+}
+
+void USurvivorAttributeSet::OnRep_MaxItemCharge(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(USurvivorAttributeSet, MaxItemCharge, OldValue);
 }
 
 
@@ -69,9 +125,20 @@ void USurvivorAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, MaxHealProgress, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, HealProgress, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, MovementSpeed, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, GeneratorRepairSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, SprintSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, CrouchSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, CrawlSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, InteractSpeed_Generator, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, InteractSpeed_ExitDoor, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, InteractSpeed_Chest, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, InteractSpeed_TotemCleansing, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, HealSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, HookSabotageSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, RescueSpeed, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, SkillCheckFrequency, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, QuickActionSoundVolume, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, CurrentItemCharge, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USurvivorAttributeSet, MaxItemCharge, COND_None, REPNOTIFY_Always);
 }
 
 void USurvivorAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -85,21 +152,34 @@ void USurvivorAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribu
 			GetOwningAbilitySystemComponent()->AddLooseGameplayTag(DBDGameplayTags::Survivor_Status_Dead);
 			GetOwningAbilitySystemComponent()->AddReplicatedLooseGameplayTag(DBDGameplayTags::Survivor_Status_Dead);
 		}
+		else if (NewValue > 0.f && NewValue <= 50.f)
+		{
+			if (!GetOwningAbilitySystemComponent()->HasMatchingGameplayTag(
+				DBDGameplayTags::Survivor_Status_HookedPhase2))
+			{
+				GetOwningAbilitySystemComponent()->AddLooseGameplayTag(DBDGameplayTags::Survivor_Status_HookedPhase2);
+				GetOwningAbilitySystemComponent()->AddReplicatedLooseGameplayTag(
+					DBDGameplayTags::Survivor_Status_HookedPhase2);
+			}
+		}
 	}
 	if (Attribute == GetDyingHPAttribute())
 	{
-		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxDyingHP());		
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxDyingHP());
 	}
 	if (Attribute == GetHealProgressAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxHealProgress());
+	}
+	if (Attribute == GetCurrentItemChargeAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxItemCharge());
 	}
 }
 
 void USurvivorAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
-
 }
 
 void USurvivorAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
@@ -118,5 +198,10 @@ void USurvivorAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffe
 	if (Data.EvaluatedData.Attribute == GetHookHPAttribute())
 	{
 		SetHookHP(FMath::Clamp(GetHookHP(), 0.f, GetMaxHookHP()));
+	}
+
+	if (Data.EvaluatedData.Attribute == GetCurrentItemChargeAttribute())
+	{
+		SetCurrentItemCharge(FMath::Clamp(GetCurrentItemCharge(), 0.f, GetMaxItemCharge()));
 	}
 }

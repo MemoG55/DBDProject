@@ -5,7 +5,13 @@
 
 #include "JMS/Character/SurvivorCharacter.h"
 #include "JMS/Item/SurvivorItem.h"
+#include "Shared/DBDDebugHelper.h"
 #include "Shared/Interface/Interactor.h"
+
+UItemInteractableComponent::UItemInteractableComponent()
+{
+	InteractableTag = DBDGameplayTags::Interactable_Object_SurvivorItem;
+}
 
 bool UItemInteractableComponent::CanInteraction(AActor* Actor)
 {
@@ -20,7 +26,7 @@ void UItemInteractableComponent::StartInteraction(AActor* Actor)
 	ASurvivorItem* OwnerAsSurvivorItem = GetOwnerAsSurvivorItem();
 	if (InteractingSurvivor && OwnerAsSurvivorItem)
 	{
-		InteractingSurvivor->EquipItem(OwnerAsSurvivorItem);
+		InteractingSurvivor->PickUpItem(OwnerAsSurvivorItem);
 	}
 }
 

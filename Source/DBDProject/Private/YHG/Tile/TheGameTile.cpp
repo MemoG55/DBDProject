@@ -12,8 +12,13 @@ ATheGameTile::ATheGameTile()
 	Tile = CreateDefaultSubobject<USceneComponent>(TEXT("Tile"));
 	Tile->SetupAttachment(RootComponent);
 
-	LightPreset = CreateDefaultSubobject<USceneComponent>(TEXT("LightPreset"));
-	LightPreset->SetupAttachment(Tile);
+	Props = CreateDefaultSubobject<USceneComponent>(TEXT("Props"));
+	Props->SetupAttachment(Tile);
+
+	Tile->Mobility = EComponentMobility::Static;
+	Props->Mobility = EComponentMobility::Static;
+	
+	bReplicates = true;
 }
 
 // Called when the game starts or when spawned
