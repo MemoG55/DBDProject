@@ -1,6 +1,5 @@
 # DBDProject
 [![Video Label](http://img.youtube.com/vi/ro7gwYu5df8/0.jpg)](https://youtu.be/ro7gwYu5df8)
-https://www.youtube.com/watch?v=ro7gwYu5df8
 ## 팀원
 + 정민수(팀장): 생존자
 + 모명준: 오브젝트 / 게임플로우
