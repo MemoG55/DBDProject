@@ -1,5 +1,5 @@
 # DBDProject
-[![Video Label](http://img.youtube.com/viro7gwYu5df8/0.jpg)](https://youtu.be/ro7gwYu5df8?t=0s
+[![Video Label](http://img.youtube.com/viro7gwYu5df8/0.jpg)](https://youtu.be/ro7gwYu5df8?t=0s)
 https://www.youtube.com/watch?v=ro7gwYu5df8
 ## 팀원
 + 정민수(팀장): 생존자
