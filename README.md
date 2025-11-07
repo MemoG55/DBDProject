@@ -1,5 +1,5 @@
 # DBDProject
-<iframe width="1369" height="770" src="https://www.youtube.com/embed/ro7gwYu5df8" title="[OBT]데드바이데이라이트 모작 프로젝트 시연 영상" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>(https://youtu.be/ro7gwYu5df8?t=0s)
+[![Video Label](http://img.youtube.com/vi/ro7gwYu5df8/0.jpg)](https://youtu.be/ro7gwYu5df8)
 https://www.youtube.com/watch?v=ro7gwYu5df8
 ## 팀원
 + 정민수(팀장): 생존자
